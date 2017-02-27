@@ -1,4 +1,5 @@
 .idea/
+/ENV/
 /RFID/
 /lib/
 /module/fetcl.dll
