@@ -2,6 +2,7 @@
 /ENV/
 /RFID/
 /lib/
+
 /module/fetcl.dll
 /module/feisc.dll
 /module/FedmIscCoreVC110.dll
@@ -10,6 +11,8 @@
 /module/RFID.lib
 /module/RFID.pdb
 /module/RFID.exp
+
+
 !/lib/.gitkeep
 !/RFID/RFID.sln
 !/RFID/RFID.vcxproj

@@ -18,47 +18,33 @@ RFID_LIB.inventory.read_tag = ctypes.c_int
 RFID_LIB.inventory.write_tag = ctypes.c_int
 RFID_LIB.get_error_text.restype = ctypes.c_char_p
 
-DEF_AMOUNT_OF_TAGS = 10  # максимальное количество меток по умолчанию
+DEF_AMOUNT_OF_TAGS = 10  #: максимальное количество меток по умолчанию
 
 
 class Reader(object):
     """Класс для управления ридером"""
-    def __init__(self, reader_id: int, base_addr: int, port_number: int):
-        self.reader_id = reader_id  #: уникальный идентификатор ридера
-        self._base_addr = base_addr  #: адрес шины
-        self._port_number = port_number  #: номер COM-порта
+    def __init__(self):
         self._reader = RFID_LIB.new_reader()
-        self.connected = False  #: проведено ли подключение
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self.connected:
-            self.disconnect()
+        self.disconnect()
 
-    def connect(self) -> None or str:
+    def connect(self, bus_addr: int, port_number: int) -> None or str:
         """Производит соединение с ридером"""
-        if self.connected:
-            log.warning('Попытка подключения к ридеру: соединение уже установлено')
-            return
-        tmp = RFID_LIB.connect_reader(
-            self._reader
-            , ctypes.c_ubyte(self._base_addr)
-            , ctypes.c_int(self._port_number)
+        r_code = RFID_LIB.connect_reader(
+            self._reader,
+            ctypes.c_ubyte(bus_addr),
+            ctypes.c_int(port_number),
         )
-        if tmp == 0:
-            self.connected = True
-        else:
-            return self.get_error_text(tmp)
+        if r_code != 0:
+            return self.get_error_text(r_code)
 
     def disconnect(self) -> None:
         """Производит разъединение с ридером"""
-        if not self.connected:
-            log.warning('Попытка разъединения с ридером: соедиение уже отключено')
-            return
         RFID_LIB.disconnect_reader(self._reader)
-        self.connected = False
 
     def inventory(self) -> list or str:
         # TODO
@@ -97,12 +83,9 @@ class Reader(object):
 
 if __name__ == '__main__':
     # Первый способ работы с ридером (с авто-дисконнектом после окончания работы)
-    with Reader(0, 1, 1) as reader:
-        reader.connect()
-        log.info('Is reader connected?: {}'.format(reader.connected))
+    with Reader() as reader:
+        reader.connect(1, 1)
 
     # Второй способ
-    reader = Reader(0, 1, 1)
-    reader.connect()
-    if reader.connected:
-        reader.disconnect()
+    reader.connect(1, 1)
+    reader.disconnect()
