@@ -1,7 +1,6 @@
 import ctypes
 import os
 import logging as log
-from typing import List
 
 __all__ = ('Reader',)
 
@@ -32,53 +31,60 @@ class Reader(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.disconnect()
 
-    def connect(self, bus_addr: int, port_number: int) -> None or str:
+    def connect(self, bus_addr: int, port_number: int) -> int or tuple:
         """Производит соединение с ридером"""
         r_code = RFID_LIB.connect_reader(
             self._reader,
             ctypes.c_ubyte(bus_addr),
             ctypes.c_int(port_number),
         )
-        if r_code != 0:
-            return self.get_error_text(r_code)
+        if r_code == 0:
+            return 0
+        else:
+            return r_code, self.get_error_text(r_code)
 
-    def disconnect(self) -> None:
+    def disconnect(self) -> int:
         """Производит разъединение с ридером"""
         RFID_LIB.disconnect_reader(self._reader)
+        return 0
 
-    def inventory(self) -> list or str:
+    def inventory(self) -> tuple:
+        """Возвращает идентификаторы меток"""
         # TODO
         tag_ids = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)()
         r_code = RFID_LIB.inventory(self._reader, tag_ids)
         if r_code != 0:
-            return [tag_id.decode('utf-8') for tag_id in tag_ids]
+            return tuple(tag_id.decode('utf-8') for tag_id in tag_ids)
         else:
-            return self.get_error_text(r_code)
+            return r_code, self.get_error_text(r_code)
 
-    def read_tag(self, tag_id: str):
+    def read_tag(self, tag_id: str) -> tuple:
+        """Возвращает данные с метки"""
         # TODO
         tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)()
         r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id), tags_data)
-        if r_code != 0:
-            return [tag_data.decode('utf-8') for tag_data in tags_data]
+        if r_code == 0:
+            return tuple(tag_data.decode('utf-8') for tag_data in tags_data)
         else:
-            return self.get_error_text(r_code)
+            return r_code, self.get_error_text(r_code)
 
-    def write_tag(self, tag_id: str, info: List[str]) -> None or str:
+    def write_tag(self, tag_id: str, info: list) -> int or tuple:
+        """Записывает данные в метку"""
         # TODO
         tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)(*info[DEF_AMOUNT_OF_TAGS])
         r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id), tags_data)
         if r_code == 0:
-            return self.get_error_text(r_code)
+            return 0
+        else:
+            return r_code, self.get_error_text(r_code)
 
     def get_error_text(self, code: int) -> str:
         """Возвращает текст ошибки по соответствующему коду"""
         text = RFID_LIB.get_error_text(self._reader, ctypes.c_int(code)).decode('utf-8')
         if len(text) == 0:
-            log.error('Невалидный код ошибки: {0}'.format(code))
-        else:
-            log.error(text)
-            return text
+            text = 'Невалидный код ошибки: {0}'.format(code)
+        log.error(text)
+        return text
 
 
 if __name__ == '__main__':
