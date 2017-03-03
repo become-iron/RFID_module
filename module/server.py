@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, redirect
 from logic import Readers
 
 # Полезные ссылки:
@@ -14,41 +14,35 @@ def index():
     return "Hello, reader!"
 
 
+@app.route('/readers/', methods=['GET'])
+def get_readers():
+    """Возвращает список настроек для ридеров"""
+    # curl -i -X GET http://localhost:5000/readers/
+    # curl -i http://localhost:5000/readers/
+    # curl -L http://localhost:5000/readers/
+    # curl http://localhost:5000/readers/
+    # -i возвращает информацию о странице
+    # -L выполняет перенаправление
+    # если перейти по адресу http://localhost:5000/readers , выполнится перенаправление на http://localhost:5000/readers/ с кодом 301
+
+    http_code = 200  # возвращен список настроек
+    response = Readers.get_readers()
+
+    return jsonify(response), http_code
+
+
 @app.route('/readers/', methods=['POST'])
 def add_reader():
     """Добавляет настройки для ридера"""
     # curl -i -H "Content-Type: application/json" -X POST -d "{"""reader_id""": """1""", """bus_addr""": 1, """port_number""": 1}" http://localhost:5000/readers/
 
     http_code = 201     # создан новый ресурс (с настройками)
-    response = Readers.add_reader(request.json)
+    # response = Readers.add_reader(request.json)
+    response = Readers.add_reader(request.json['reader_id'], request.json['bus_addr'], request.json['port_number'])
 
     if 'error' in response:
         http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
     return jsonify(response), http_code
-
-
-@app.route('/readers/', methods=['GET'])
-def get_readers():
-    """Возвращает список настроек для ридеров"""
-    # curl -i -X GET http://localhost:5000/readers/
-    # curl -i http://localhost:5000/readers/
-
-    http_code = 200     # возвращен список настроек
-    response = Readers.get_readers()
-    
-    return jsonify(response), http_code
-
-
-@app.route('/readers/<reader_id>/', methods=['GET'])
-def get_reader(reader_id):
-    """Возвращает настройки ридера"""
-    # curl -i -X GET http://localhost:5000/readers/1/
-    # curl -i http://localhost:5000/readers/1/
-
-    http_code = 200     # возвращен список настроек
-    response = Readers.get_reader(reader_id)
-
-    return jsonify({}), http_code
 
 
 @app.route('/readers/', methods=['PUT'])
@@ -61,6 +55,29 @@ def update_readers():
 
     if 'error' in response:
         http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
+
+    return jsonify({}), http_code
+
+
+@app.route('/readers/', methods=['DELETE'])
+def delete_readers():
+    """Удаляет все настройки ридеров"""
+    # curl -i -X DELETE http://localhost:5000/readers/
+
+    http_code = 200     # настройки удалены
+    response = Readers.delete_readers()
+
+    return jsonify({}), http_code
+
+
+@app.route('/readers/<reader_id>/', methods=['GET'])
+def get_reader(reader_id):
+    """Возвращает настройки ридера"""
+    # curl -i -X GET http://localhost:5000/readers/1/
+    # curl -i http://localhost:5000/readers/1/
+
+    http_code = 200     # возвращен список настроек
+    response = Readers.get_reader(reader_id)
 
     return jsonify({}), http_code
 
@@ -78,17 +95,6 @@ def update_reader(reader_id):
     return jsonify({}), http_code
 
 
-@app.route('/readers/', methods=['DELETE'])
-def delete_readers():
-    """Удаляет все настройки ридеров"""
-    # curl -i -X DELETE http://localhost:5000/readers/
-
-    http_code = 200     # настройки удалены
-    response = Readers.delete_readers()
-
-    return jsonify({})
-
-
 @app.route('/readers/<reader_id>/', methods=['DELETE'])
 def delete_reader(reader_id):
     """Удаляет ридер"""
@@ -97,7 +103,7 @@ def delete_reader(reader_id):
     http_code = 200     # настройки удалены
     response = Readers.delete_reader(reader_id)
 
-    return jsonify({})
+    return jsonify({}), http_code
 
 
 # Эта функция, скорее всего, не нужна
@@ -108,7 +114,7 @@ def inventory(reader_id):
     http_code = 200     # идентификаторы возвращены
     response = Readers.inventory(reader_id)
 
-    return jsonify({})
+    return jsonify({}), http_code
 
 
 @app.route('/readers/<reader_id>/tags/', methods=['GET'])
@@ -118,7 +124,7 @@ def read_tags(reader_id):
     http_code = 200     # информация возвращена
     response = Readers.read_tags(reader_id)
 
-    return jsonify({})
+    return jsonify({}), http_code
 
 
 @app.route('/readers/<reader_id>/tags/', methods=['PUT'])
@@ -131,7 +137,7 @@ def write_tags(reader_id):
     if 'error' in response:
         http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
 
-    return jsonify({})
+    return jsonify({}), http_code
 
 
 @app.route('/readers/<reader_id>/tags/', methods=['DELETE'])
@@ -142,7 +148,7 @@ def clear_tags(reader_id):
     http_code = 200     # 
     response = Readers.clear_tags(reader_id)
 
-    return jsonify({})
+    return jsonify({}), http_code
 
 
 if __name__ == '__main__':
