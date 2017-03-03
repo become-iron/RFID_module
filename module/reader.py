@@ -6,7 +6,7 @@ __all__ = ('Reader',)
 
 # конфигурация логирования
 # "ERROR: 2017-02-26 16:50:00,685. FECOM: (-1033) communication process not started"
-log.basicConfig(format='%(levelname)s: %(asctime)-15s. %(message)s', level=log.INFO)
+log.basicConfig(format='[%(module)s] %(levelname)s: %(asctime)-15s   %(message)s', level=log.INFO)
 
 RFID_LIB = ctypes.CDLL(os.getcwd() + r'\RFID.dll')  # подключение библиотеки для работы с RFID-ридером
 # определение возвращаемых функциями типов данных
@@ -31,7 +31,7 @@ class Reader(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.disconnect()
 
-    def connect(self, bus_addr: int, port_number: int) -> int or tuple:
+    def connect(self, bus_addr: int, port_number: int) -> int:
         """Производит соединение с ридером"""
         r_code = RFID_LIB.connect_reader(
             self._reader,
@@ -41,14 +41,14 @@ class Reader(object):
         if r_code == 0:
             return 0
         else:
-            return r_code, self.get_error_text(r_code)
+            return r_code
 
     def disconnect(self) -> int:
         """Производит разъединение с ридером"""
         RFID_LIB.disconnect_reader(self._reader)
         return 0
 
-    def inventory(self) -> tuple:
+    def inventory(self) -> tuple or int:
         """Возвращает идентификаторы меток"""
         # TODO
         tag_ids = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)()
@@ -56,9 +56,9 @@ class Reader(object):
         if r_code != 0:
             return tuple(tag_id.decode('utf-8') for tag_id in tag_ids)
         else:
-            return r_code, self.get_error_text(r_code)
+            return r_code
 
-    def read_tag(self, tag_id: str) -> tuple:
+    def read_tag(self, tag_id: str) -> tuple or int:
         """Возвращает данные с метки"""
         # TODO
         tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)()
@@ -66,9 +66,9 @@ class Reader(object):
         if r_code == 0:
             return tuple(tag_data.decode('utf-8') for tag_data in tags_data)
         else:
-            return r_code, self.get_error_text(r_code)
+            return r_code
 
-    def write_tag(self, tag_id: str, info: list) -> int or tuple:
+    def write_tag(self, tag_id: str, info: list) -> int:
         """Записывает данные в метку"""
         # TODO
         tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)(*info[DEF_AMOUNT_OF_TAGS])
@@ -76,7 +76,7 @@ class Reader(object):
         if r_code == 0:
             return 0
         else:
-            return r_code, self.get_error_text(r_code)
+            return r_code
 
     def get_error_text(self, code: int) -> str:
         """Возвращает текст ошибки по соответствующему коду"""
