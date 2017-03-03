@@ -48,10 +48,10 @@ def add_reader():
 @app.route('/readers/', methods=['PUT'])
 def update_readers():
     """Заменяет все настройки ридеров переданными"""
-    # curl -i -H "Content-Type: application/json" -X POST -d "{"""reader_id""": """1""", """bus_addr""": 1, """port_number""": 1}" http://localhost:5000/readers/
+    # curl -i -H "Content-Type: application/json" -X PUT -d "{"""bus_addr""": 23, """port_number""": 1}" http://localhost:5000/readers/
 
     http_code = 200     # настройки обновлены
-    response = Readers.update_readers()
+    response = Readers.update_readers(data=request.json)
 
     if 'error' in response:
         http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
@@ -85,9 +85,10 @@ def get_reader(reader_id):
 @app.route('/readers/<reader_id>/', methods=['PUT'])
 def update_reader(reader_id):
     """Обновляет настройки ридера"""
+    # curl -i -H "Content-Type: application/json" -X PUT -d "{"""reader_id""": """1""", """bus_addr""": 23, """port_number""": 1}" http://localhost:5000/readers/1/
 
     http_code = 200     # настройки обновлены
-    response = Readers.update_reader(reader_id=reader_id)
+    response = Readers.update_reader(reader_id=reader_id, data=request.json)
 
     if 'error' in response:
         http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
@@ -122,7 +123,7 @@ def read_tags(reader_id):
     """Возвращает информацию с меток"""
 
     http_code = 200     # информация возвращена
-    response = Readers.read_tags(reader_id=reader_id)
+    response = Readers.read_tags(reader_id=reader_id, data=request.json)
 
     return jsonify(response), http_code
 
@@ -132,7 +133,7 @@ def write_tags(reader_id):
     """Записывает информацию в метки"""
 
     http_code = 200     # информация записана
-    response = Readers.write_tags(reader_id=reader_id)
+    response = Readers.write_tags(reader_id=reader_id, data=request.json)
 
     if 'error' in response:
         http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
@@ -140,7 +141,7 @@ def write_tags(reader_id):
     return jsonify(response), http_code
 
 
-@app.route('/readers/<reader_id>/tags/', methods=['DELETE'])
+@app.route('/readers/<reader_id>/tags/', methods=['DELETE'], data=request.json)
 def clear_tags(reader_id):
     """Очищает информацию с меток"""
     # curl -i -X DELETE http://localhost:5000/readers/tags/
