@@ -68,10 +68,10 @@ class Reader(object):
         else:
             return r_code
 
-    def write_tag(self, tag_id: str, info: list) -> int:
+    def write_tag(self, tag_id: str, data: list or tuple) -> int:
         """Записывает данные в метку"""
         # TODO
-        tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)(*info[DEF_AMOUNT_OF_TAGS])
+        tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)(*data[DEF_AMOUNT_OF_TAGS])
         r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id), tags_data)
         if r_code == 0:
             return 0
