@@ -141,12 +141,12 @@ def write_tags(reader_id):
     return jsonify(response), http_code
 
 
-@app.route('/readers/<reader_id>/tags/', methods=['DELETE'], data=request.json)
+@app.route('/readers/<reader_id>/tags/', methods=['DELETE'])
 def clear_tags(reader_id):
     """Очищает информацию с меток"""
     # curl -i -X DELETE http://localhost:5000/readers/tags/
 
-    http_code = 204     #
+    http_code = 204     # информация удалена
     response = Readers.clear_tags(reader_id=reader_id)
 
     return jsonify(response), http_code
