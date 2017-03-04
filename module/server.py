@@ -125,6 +125,9 @@ def read_tags(reader_id):
     http_code = 200     # информация возвращена
     response = Readers.read_tags(reader_id=reader_id, data=request.json)
 
+    if 'error' in response:
+        http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
+
     return jsonify(response), http_code
 
 
@@ -147,7 +150,10 @@ def clear_tags(reader_id):
     # curl -i -X DELETE http://localhost:5000/readers/tags/
 
     http_code = 204     # информация удалена
-    response = Readers.clear_tags(reader_id=reader_id)
+    response = Readers.write_tags(reader_id=reader_id, data=request.json, clear=True)
+
+    if 'error' in response:
+        http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
 
     return jsonify(response), http_code
 
