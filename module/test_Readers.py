@@ -165,6 +165,3 @@ class TestReaders(unittest.TestCase):
         amount = len(Readers.get_readers()['response'])
         for i in range(amount):
             self.assertEqual(self.success_response, Readers.delete_reader(reader_id=str(i)))
-
-if __name__ == '__main__':
-    unittest.main()
