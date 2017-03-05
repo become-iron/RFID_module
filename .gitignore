@@ -13,6 +13,9 @@
 /module/RFID.exp
 
 
+/docs/_build/
+
+
 !/lib/.gitkeep
 !/RFID/RFID.sln
 !/RFID/RFID.vcxproj

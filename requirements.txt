@@ -1,1 +1,8 @@
+# указаны версии, используемые в разработке
+
 flask == 0.12
+
+# для документации
+Sphinx == 1.5.3
+sphinxcontrib-httpdomain == 1.5.0
+sphinx_rtd_theme == 0.2.2
