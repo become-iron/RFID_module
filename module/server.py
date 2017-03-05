@@ -64,7 +64,7 @@ def delete_readers():
     """Удаляет все настройки ридеров"""
     # curl -i -X DELETE http://localhost:5000/readers/
 
-    http_code = 204     # настройки удалены
+    http_code = 200     # настройки удалены
     response = Readers.delete_readers()
 
     return jsonify(response), http_code
@@ -79,6 +79,10 @@ def get_reader(reader_id):
     http_code = 200     # возвращен список настроек
     response = Readers.get_reader(reader_id=reader_id)
 
+    if 'error' in response:
+        if response['error']['error_code'] == 0:
+            http_code = 404     # Ридер не найден
+
     return jsonify(response), http_code
 
 
@@ -91,7 +95,10 @@ def update_reader(reader_id):
     response = Readers.update_reader(reader_id=reader_id, data=request.json)
 
     if 'error' in response:
-        http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
+        if response['error']['error_code'] == 0:
+            http_code = 404     # Ридер не найден
+        else:
+            http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
 
     return jsonify(response), http_code
 
@@ -101,8 +108,12 @@ def delete_reader(reader_id):
     """Удаляет ридер"""
     # curl -i -X DELETE http://localhost:5000/readers/1/
 
-    http_code = 204     # настройки удалены
+    http_code = 200     # настройки удалены
     response = Readers.delete_reader(reader_id=reader_id)
+
+    if 'error' in response:
+        if response['error']['error_code'] == 0:
+            http_code = 404     # Ридер не найден
 
     return jsonify(response), http_code
 
@@ -115,6 +126,10 @@ def inventory(reader_id):
     http_code = 200     # идентификаторы возвращены
     response = Readers.inventory(reader_id=reader_id)
 
+    if 'error' in response:
+        if response['error']['error_code'] == 0:
+            http_code = 404     # Ридер не найден
+
     return jsonify(response), http_code
 
 
@@ -126,7 +141,10 @@ def read_tags(reader_id):
     response = Readers.read_tags(reader_id=reader_id, data=request.json)
 
     if 'error' in response:
-        http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
+        if response['error']['error_code'] == 0:
+            http_code = 404     # Ридер не найден
+        else:
+            http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
 
     return jsonify(response), http_code
 
@@ -139,7 +157,10 @@ def write_tags(reader_id):
     response = Readers.write_tags(reader_id=reader_id, data=request.json)
 
     if 'error' in response:
-        http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
+        if response['error']['error_code'] == 0:
+            http_code = 404     # Ридер не найден
+        else:
+            http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
 
     return jsonify(response), http_code
 
@@ -149,11 +170,14 @@ def clear_tags(reader_id):
     """Очищает информацию с меток"""
     # curl -i -X DELETE http://localhost:5000/readers/tags/
 
-    http_code = 204     # информация удалена
+    http_code = 200     # информация удалена
     response = Readers.write_tags(reader_id=reader_id, data=request.json, clear=True)
 
     if 'error' in response:
-        http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
+        if response['error']['error_code'] == 0:
+            http_code = 404     # Ридер не найден
+        else:
+            http_code = 400     # ошибка в запросе, ошибки в названиях полей, передан не json
 
     return jsonify(response), http_code
 
