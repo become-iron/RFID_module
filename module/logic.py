@@ -88,50 +88,50 @@ class Errors:
                 log.error(self.log(func_name))
             return result
 
-    InvalidReaderId = Error(
-        0, 'Некорректное значение идентификатора ридера',
-        'reader_id', lambda x: not isinstance(x, str)
-    )
-    InvalidReaderBusAddr = Error(
-        0, 'Некорректное значение параметра шины адреса',
-        'bus_addr', lambda x: not isinstance(x, int))
-    InvalidReaderPortNumber = Error(
-        0, 'Некорректное значение параметра номера порта',
-        'port_number', lambda x: not isinstance(x, int))
-    InvalidReaderState = Error(
-        0, 'Некорректное значение параметра состояния ридера',
-        'state', lambda x: not isinstance(x, bool))
-    WrongAmountOfParams = Error(
-        0, 'Неверное количество параметров',
-        'data', lambda x: not all(map(lambda i: i in x, ('reader_id', 'bus_addr', 'port_number'))))
-    ReaderExists = Error(
-        0, 'Ридер с данным идентификатором существует',
-        'reader_id', lambda x: x in Readers)
-    ReaderNotExists = Error(
-        0, 'Ридера с данным идентификатором не существует',
-        'reader_id', lambda x: x not in Readers)
-    ReaderIsConnected = Error(
-        0, 'Операция не может быть совершена, так как ридер подключён',
-        'reader_id', lambda x: Readers[x]['state'] is True)
-    ReaderIsDisconnected = Error(
-        0, 'Операция не может быть совершена, так как ридер отключён',
-        'reader_id', lambda x: Readers[x]['state'] is False)
-    OneOrMoreReadersAreConnected = Error(
-        0, 'Операция не может совершена, так как один или больше ридеров подключены',
-        None, lambda: not all(map(lambda rid: Readers[rid]['state'] is False, Readers)))
-    ReadersListAlreadyIsEmpty = Error(
-        0, 'Список ридеров уже пуст',
-        None, lambda: len(Readers) == 0)
-    InvalidTagId = Error(
-        0, 'Некорректное значение идентификатора')  # TODO возможно, не понадобится
-    InvalidTagData = Error(
-        0, 'Некорректное значение данных для записи в метку')
     InvalidRequest = Error(
         0, 'Некорректный запрос'
     )
+    WrongAmountOfParams = Error(
+        1, 'Неверное количество параметров',
+        'data', lambda x: not all(map(lambda i: i in x, ('reader_id', 'bus_addr', 'port_number'))))
+    InvalidReaderId = Error(
+        2, 'Некорректное значение идентификатора ридера',
+        'reader_id', lambda x: not isinstance(x, str)
+    )
+    InvalidReaderBusAddr = Error(
+        3, 'Некорректное значение параметра шины адреса',
+        'bus_addr', lambda x: not isinstance(x, int))
+    InvalidReaderPortNumber = Error(
+        4, 'Некорректное значение параметра номера порта',
+        'port_number', lambda x: not isinstance(x, int))
+    InvalidReaderState = Error(
+        5, 'Некорректное значение параметра состояния ридера',
+        'state', lambda x: not isinstance(x, bool))
+    InvalidTagId = Error(
+        6, 'Некорректное значение идентификатора метки')  # TODO возможно, не понадобится
+    InvalidTagData = Error(
+        7, 'Некорректное значение данных для записи в метку')
+    ReaderExists = Error(
+        8, 'Ридер с данным идентификатором существует',
+        'reader_id', lambda x: x in Readers)
+    ReaderNotExists = Error(
+        9, 'Ридера с данным идентификатором не существует',
+        'reader_id', lambda x: x not in Readers)
+    ReaderIsConnected = Error(
+        10, 'Операция не может быть совершена, так как ридер подключён',
+        'reader_id', lambda x: Readers[x]['state'] is True)
+    ReaderIsDisconnected = Error(
+        11, 'Операция не может быть совершена, так как ридер отключён',
+        'reader_id', lambda x: Readers[x]['state'] is False)
+    OneOrMoreReadersAreConnected = Error(
+        12, 'Операция не может совершена, так как один или больше ридеров подключены',
+        None, lambda: not all(map(lambda rid: Readers[rid]['state'] is False, Readers)))
+    ReadersListAlreadyIsEmpty = Error(
+        13, 'Список ридеров уже пуст',
+        None, lambda: len(Readers) == 0)
     # ошибка для внутренней работы (только для вывода в лог)
     ArgsWithoutKeywords = Error(
-        0, 'Вызван метод без указания названий параметров, что может привести к неверной работе')
+        100, 'Вызван метод без указания названий параметров, что может привести к неверной работе')
 
 
 class _Readers:
@@ -321,7 +321,8 @@ class _Readers:
                 result[reader_id]['reader'] = None
                 result[reader_id]['state'] = False
 
-        if 'reader_id' in data:
+        if 'reader_id' in data \
+                and data['reader_id'] != reader_id:  # проверка на случай, если новый id совпадает со старым
             new_reader_id = data['reader_id']
             if Errors.InvalidReaderId.auto_check('update_reader', new_reader_id):
                 return make_response(error=Errors.InvalidReaderId)
@@ -358,7 +359,7 @@ class _Readers:
         считывание с меток, находящихся в зоне действия антенны
 
         Требуемый формат параметра data:
-            {'tag_ids': ['1', '2', '3', ...]}
+            ['1', '2', '3', ...]
         """
         # TEMP нужно будет определиться с форматом данных на метках
         reader = self[reader_id]['reader']
@@ -395,11 +396,11 @@ class _Readers:
             - clear (bool): нужно ли очистить информацию вместо записи
 
         Требуемый формат параметра data:
-            {'tag_ids': {
+            {
                 '1': '213',
                 '2': 'sdf',
                 ...
-            }}
+            }
         """
         # WARN из-за того, что для очистки меток не используется отдельная \
         # WARN функция, при логировании будет выходить название этой
@@ -407,19 +408,15 @@ class _Readers:
         # TEMP нужно будет определиться с форматом данных на метках
         reader = self[reader_id]['reader']
 
-        if 'tag_ids' not in data:
-            return make_response(error=Errors.InvalidRequest('Отсутствует поле \'tag_ids\' в запросе'))  # TEMP
-
         # TODO валидация значений меток
-        tag_ids = data['tag_ids']
 
         result = {}
         errors = {}
-        for tag_id in tag_ids:
+        for tag_id in data:
             if clear:
                 tag_data = ''  # TEMP TODO какие-то данные для очистки меток
             else:
-                tag_data = tag_ids[tag_id]
+                tag_data = data[tag_id]
             r_code = reader.write_tag(tag_id, tag_data)  # TEMP
             if r_code != 0:
                 errors.update({tag_id: {'error_code': r_code, 'error_msg': reader.get_error_text(r_code)}})
