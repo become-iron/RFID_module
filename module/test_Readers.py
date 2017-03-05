@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import unittest
-from pprint import pprint
 from logic import Readers, Errors, make_response
 
 
@@ -21,10 +20,10 @@ class TestReaders(unittest.TestCase):
     ReadersListAlreadyIsEmpty_response = make_response(error=Errors.ReadersListAlreadyIsEmpty)
 
     def setUp(self):
-        pprint(Readers.get_readers())
+        Readers.get_readers()
 
     def tearDown(self):
-        pprint(Readers.get_readers())
+        Readers.get_readers()
 
     def test_add_readers(self):
         amount = len(Readers.get_readers()['response'])
@@ -35,7 +34,6 @@ class TestReaders(unittest.TestCase):
 
         for j in range(2):
             for i in range(25):
-                print('i:', i, ', j:', j)
                 if i in range(0, 5):
                     data = {'reader_id': str(i), 'bus_addr': i, 'port_number': i}
                     if j == 0:
@@ -61,24 +59,20 @@ class TestReaders(unittest.TestCase):
                     data = {'reader_id': str(i), 'bus_addr': i, 'port_number': str(i)}
                     self.assertEqual(self.InvalidReaderPortNumber_response, Readers.add_reader(data=data))
 
-                pprint(data)
-
     def test_get_reader(self):
         amount = len(Readers.get_readers()['response'])
         for i in range(amount):
-            pprint(i)
-            pprint(Readers.get_reader(reader_id=str(i)))
+            self.assertEqual(Readers.get_reader(reader_id=str(i))['response'][str(i)],
+                             Readers.get_readers()['response'][str(i)])
 
     def test_update_reader(self):
         amount = len(Readers.get_readers()['response'])
         for j in range(2):
             for i in range(amount):
                 number = i + 100
-                print('i:', i, ', j:', j)
 
                 # Ридера с данным идентификатором не существует
                 data = {'reader_id': str(number), 'bus_addr': i, 'port_number': i, 'state': True}
-                pprint(Readers.update_reader(reader_id=str(i), data=data))
                 # self.assertEqual(
                 #     {'error': {'error_code': -106,
                 #                'error_msg': 'Error in Module FEDM: Unknown transfer parameter or parameter value is out of valid range'}},
@@ -100,15 +94,15 @@ class TestReaders(unittest.TestCase):
                 data = {'reader_id': number, 'bus_addr': number, 'port_number': number, 'state': False}
                 self.assertEqual(self.ReaderNotExists_response, Readers.update_reader(reader_id=str(i), data=data))
 
-                # Невалидное значение параметра шины адреса
+                # Ридера с данным идентификатором не существует
                 data = {'reader_id': str(number), 'bus_addr': str(number), 'port_number': str(number), 'state': False}
                 self.assertEqual(self.ReaderNotExists_response, Readers.update_reader(reader_id=str(i), data=data))
 
-                # Невалидное значение параметра шины адреса
+                # Ридера с данным идентификатором не существует
                 data = {'reader_id': str(number), 'bus_addr': str(number), 'port_number': number, 'state': False}
                 self.assertEqual(self.ReaderNotExists_response, Readers.update_reader(reader_id=str(i), data=data))
 
-                # Невалидное значение параметра номера порта
+                # Ридера с данным идентификатором не существует
                 data = {'reader_id': str(number), 'bus_addr': number, 'port_number': str(number), 'state': False}
                 self.assertEqual(self.ReaderNotExists_response, Readers.update_reader(reader_id=str(i), data=data))
 
@@ -144,35 +138,28 @@ class TestReaders(unittest.TestCase):
     def test_inventory(self):
         amount = len(Readers.get_readers()['response'])
         for i in range(amount):
-            print("test_inventory", i)
-            pprint(Readers.inventory(reader_id=str(i)))
-            # self.assertEqual(self.success_response, Readers.inventory(reader_id=str(i)))
+            self.assertEqual(self.success_response, Readers.inventory(reader_id=str(i)))
 
     def test_read_tags(self):
         amount = len(Readers.get_readers()['response'])
         for i in range(amount):
-            print("test_read_tags", i)
             data = {'tag_ids': list(range(20))[:i]}
 
-            pprint(data)
-            pprint(Readers.read_tags(reader_id=str(i), data=data))
-            # self.assertEqual(self.success_response, Readers.read_tags(reader_id=str(i)))
+            self.assertEqual(self.success_response, Readers.read_tags(reader_id=str(i), data=data))
 
     def test_write_tags(self):
         amount = len(Readers.get_readers()['response'])
         for i in range(amount):
-            print("test_write_tags", i)
             data = {'tag_ids': {a: a for a in list(range(100))}}
-            pprint(Readers.write_tags(reader_id=str(i), data=data))
-            # self.assertEqual(self.success_response, Readers.write_tags(reader_id=str(i)))
+
+            self.assertEqual(self.success_response, Readers.write_tags(reader_id=str(i), data=data))
 
     def test_clear_tags(self):
         amount = len(Readers.get_readers()['response'])
         for i in range(amount):
-            print("test_clear_tags", i)
             data = {'tag_ids': {a: a for a in list(range(100))}}
-            pprint(Readers.write_tags(reader_id=str(i), data=data, clear=True), )
-            # self.assertEqual(self.success_response, Readers.clear_tags(reader_id=str(i)))
+
+            self.assertEqual(self.success_response, Readers.write_tags(reader_id=str(i), data=data, clear=True))
 
     def test_delete_reader(self):
         amount = len(Readers.get_readers()['response'])
