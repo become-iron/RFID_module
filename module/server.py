@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from logic import Readers
 
 # Полезные ссылки:
@@ -8,10 +8,15 @@ from logic import Readers
 app = Flask(__name__)
 
 
-@app.route('/')
-def index():
-    # TODO (Н): выдавать инфу по API
-    return "Hello, reader!"
+@app.route('/docs/', defaults={'filename': 'index.html'})
+@app.route('/docs/<path:filename>')
+def documentation(filename):
+    # WARN не пересылается путь по адресу http://127.0.0.1:5000/docs/_static/fonts/fontawesome-webfont.woff2?v=4.6.3
+    # TODO добавить проверку на наличие файла
+    return send_from_directory(
+        '../docs/_build/html/',
+        filename
+    )
 
 
 @app.route('/readers/', methods=['GET'])
