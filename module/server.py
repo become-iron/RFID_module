@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, redirect, url_for
 from logic import Readers
 
 # Полезные ссылки:
 # Representational state transfer — https://en.wikipedia.org/wiki/Representational_state_transfer
 
 app = Flask(__name__)
+
+
+@app.route('/', defaults={'filename': 'index.html'})
+@app.route('/<path:filename>')
+def index_redirect(filename):
+    return redirect((url_for('documentation', filename=filename)), code=301)
 
 
 @app.route('/docs/', defaults={'filename': 'index.html'})
