@@ -18,9 +18,10 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-import sys
-sys.path.append('../module/')
+
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+html_show_sourcelink = False
+
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
