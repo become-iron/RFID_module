@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os.path
 from flask import Flask, jsonify, request, send_from_directory, redirect, url_for
 from logic import Readers
 
@@ -8,19 +9,21 @@ from logic import Readers
 app = Flask(__name__)
 
 
-@app.route('/', defaults={'filename': 'index.html'})
-@app.route('/<path:filename>')
-def index_redirect(filename):
-    return redirect((url_for('documentation', filename=filename)), code=301)
+@app.route('/')
+def index_redirect():
+    """Редирект с главной страницы на документацию"""
+    return redirect(url_for('documentation'))
 
 
 @app.route('/docs/', defaults={'filename': 'index.html'})
 @app.route('/docs/<path:filename>')
 def documentation(filename):
     # WARN не пересылается путь по адресу http://127.0.0.1:5000/docs/_static/fonts/fontawesome-webfont.woff2?v=4.6.3
-    # TODO добавить проверку на наличие файла
+    path_to_docs = '../docs/_build/html/'
+    if not os.path.isdir(path_to_docs):
+        return 'Документация недоступна, так как ещё не была собрана'
     return send_from_directory(
-        '../docs/_build/html/',
+        path_to_docs,
         filename
     )
 
