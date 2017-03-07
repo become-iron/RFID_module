@@ -25,25 +25,28 @@ def make_response(response=None, error=None, error_params=None) -> dict:
 
 
 def check_for_errors(*errors):
-    """Декоратор для проверки наличия ошибок во время работы с RFID"""
-    # WARN для верной работы декоратора необходимо всегда указывать названия параметров при вызове декорируемых объектов
+    """
+    Декоратор для проверки наличия ошибок во время работы с RFID
+    Применяется только к методам
+    """
+    # WARN для верной работы декоратора необходимо всегда указывать названия параметров при вызове декорируемых методов
     def check_decorator(func):
-        def wrapper(*args, **kwargs):
+        def wrapper(self, *args, **kwargs):  # self, так как декоратор применяется к методам
             for error in errors:
-                if len(args) > 1:  # > 1, так как в методах первым аргументом всегда передаётся self
+                if len(args) > 0:
                     log.warning(Errors.ArgsWithoutKeywords.log(func.__name__))
                 if (error.param is None and error.check()) \
                         or (error.param in kwargs and error.check(kwargs[error.param])):
                     # TODO сделать вывод более информативным
                     log.error(error.log(func.__name__))
                     return make_response(error=error)
-            return func(*args, **kwargs)
+            return func(self, *args, **kwargs)
         return wrapper
     return check_decorator
 
 
 class Errors:
-    """Вспомогательный объект ддя хранения возникающих ошибок (кодов и описаний)"""
+    """Вспомогательный объект для хранения возникающих ошибок (кодов и описаний)"""
     # TODO попытаться привести к более красивому виду
     class Error:
         def __init__(self, code: int, msg: str, param=None, check=None):
@@ -52,11 +55,11 @@ class Errors:
             self.param = param  # имя параметра, необходимого для проверки
             self.check = check  # функция для проверки (возвращает True в случае возникновения ошибки)
 
-        def __call__(self, msg):
+        def __call__(self, msg=None):
             # Можно использовать для передачи дополнительной информации
             # Например:
             # Errors.InvalidReaderBusAddr(bus_addr)
-            new_msg = '{0} ({1})'.format(self.msg, msg)
+            new_msg = '{0} ({1})'.format(self.msg, msg) if msg is not None else self.msg
             return Errors.Error(self.code, new_msg, self.param, self.check)
 
         def log(self, func_name=None, *params) -> str:
@@ -91,8 +94,8 @@ class Errors:
     InvalidRequest = Error(
         0, 'Некорректный запрос'
     )
-    WrongAmountOfParams = Error(
-        1, 'Неверное количество параметров',
+    InvalidParameterSet = Error(
+        1, 'Некорректный набор параметров',
         'data', lambda x: not all(map(lambda i: i in x, ('reader_id', 'bus_addr', 'port_number'))))
     InvalidReaderId = Error(
         2, 'Некорректное значение идентификатора ридера',
@@ -100,7 +103,7 @@ class Errors:
     )
     InvalidReaderBusAddr = Error(
         3, 'Некорректное значение параметра шины адреса',
-        'bus_addr', lambda x: not isinstance(x, int))
+        'bus_addr', lambda x: not isinstance(x, int) or not (0 <= x <= 255))
     InvalidReaderPortNumber = Error(
         4, 'Некорректное значение параметра номера порта',
         'port_number', lambda x: not isinstance(x, int))
@@ -207,7 +210,7 @@ class _Readers:
             }
         return make_response(response=result)
 
-    @check_for_errors(Errors.WrongAmountOfParams)
+    @check_for_errors(Errors.InvalidParameterSet)
     def add_reader(self, data: dict):
         """
         Добавляет ридер
@@ -216,6 +219,7 @@ class _Readers:
               При наличии в data необязательного ключа state==True произойдёт подключениие ридера
         """
         # TODO добавить ли возможность сразу подключать ридер
+        # TODO такую ли структуру надо использовать?
         reader_id = data['reader_id']
         bus_addr = data['bus_addr']
         port_number = data['port_number']
@@ -434,7 +438,7 @@ Readers = _Readers()  # WARN: объект в глобальной област�
 if __name__ == '__main__':
     from pprint import pprint
     pprint(Readers.get_readers())
-    Readers.add_reader(data=dict(reader_id=1, bus_addr=1, port_number=1))
+    Readers.add_reader(data=dict(reader_id="1", bus_addr=1, port_number=1))
     Readers.add_reader(data=dict(reader_id="2", bus_addr=1, port_number=1))
     pprint(Readers.add_reader(data=dict(reader_id='3', bus_addr=1, port_number=1)))
     pprint(Readers.add_reader(data=dict(reader_id='4', bus_addr=3, port_number=3)))

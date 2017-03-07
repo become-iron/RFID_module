@@ -5,12 +5,12 @@ import logging as log
 __all__ = ('Reader',)
 
 # конфигурация логирования
-# "ERROR: 2017-02-26 16:50:00,685. FECOM: (-1033) communication process not started"
+# "[logic] ERROR: 2017-03-06 15:03:24,589   [add_reader] Ридер с данным идентификатором существует"
 log.basicConfig(format='[%(module)s] %(levelname)s: %(asctime)-15s   %(message)s', level=log.INFO)
 
 RFID_LIB = ctypes.CDLL(os.getcwd() + r'\RFID.dll')  # подключение библиотеки для работы с RFID-ридером
 # определение возвращаемых функциями типов данных
-RFID_LIB.new_reader.restype = ctypes.c_void_p  # WARN CHECK
+RFID_LIB.new_reader.restype = ctypes.c_void_p  # WARN CHECK хранение FEDM_ISCReaderModule * в void *
 RFID_LIB.connect_reader.restype = ctypes.c_int
 RFID_LIB.inventory.restype = ctypes.c_int
 RFID_LIB.inventory.read_tag = ctypes.c_int
@@ -35,7 +35,7 @@ class Reader(object):
         """Производит соединение с ридером"""
         r_code = RFID_LIB.connect_reader(
             self._reader,
-            ctypes.c_ubyte(bus_addr),
+            ctypes.c_ubyte(bus_addr),  # c_ubyte = unsigned char
             ctypes.c_int(port_number),
         )
         if r_code == 0:
@@ -59,7 +59,11 @@ class Reader(object):
             return r_code
 
     def read_tag(self, tag_id: str) -> tuple or int:
-        """Возвращает данные с метки"""
+        """
+        Возвращает данные с метки
+        Принимает:
+            - tag_id (str): идентификатор метки
+        """
         # TODO
         tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)()
         r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id), tags_data)
@@ -69,7 +73,12 @@ class Reader(object):
             return r_code
 
     def write_tag(self, tag_id: str, data: list or tuple) -> int:
-        """Записывает данные в метку"""
+        """
+        Записывает данные в метку
+        Принимает:
+            - tag_id (str): идентификатор метки
+            - data (list or tuple): содержит в себе данные для меток (str)
+        """
         # TODO
         tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)(*data[DEF_AMOUNT_OF_TAGS])
         r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id), tags_data)
