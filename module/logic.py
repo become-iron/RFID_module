@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 import configparser as cp
-import logging as log
+import logging
 
 from reader import Reader
 
 __all__ = ('Readers',)
 
 # конфигурация логирования
-# "[logic] ERROR: 2017-03-06 15:03:24,589   [add_reader] Ридер с данным идентификатором существует"
-log.basicConfig(format='[%(module)s] %(levelname)s: %(asctime)-15s   %(message)s', level=log.WARNING)
+# "[MODULE] LEVEL: 0000-00-00 00:00:00,000   MSG"
+logging.basicConfig(format='[%(module)s] %(levelname)s: %(asctime)-15s   %(message)s', level=logging.WARNING)
 
 
 def make_response(response=None, error=None) -> dict:
@@ -16,14 +16,21 @@ def make_response(response=None, error=None) -> dict:
     Формулирует ответ на запрос
     Принимает:
         - response: данные, которые необходимо вернут
-        - error (Errors.Error): ошибка
-        - error_params: какие-либо данные/параметры, которые могли привести к ошибке
+        - error (Errors.Error or Any): ошибка
+
+    Если response is None and error is None, то возвращает {'response': 0}
     """
+    # TODO подумать над тем, чтобы сделать декоратором или над тем, нужна ли вообще эта функция
     result = {}
     if response is not None:
         result.update({'response': response})
     if error is not None:
-        result.update({'error': {'error_code': error.code, 'error_msg': error.msg}})
+        if isinstance(error, Errors.Error):
+            result.update({'error': {'error_code': error.code, 'error_msg': error.msg}})
+        else:
+            result.update({'error': error})
+    if response is None and error is None:
+        result = {'response': 0}
     return result
 
 
@@ -83,7 +90,7 @@ class Errors:
                 + ', '.join(tuple(map(lambda k: '{}={!r}'.format(k, kwargs[k]), kwargs))),
                 self.msg
             )
-            log.warning(result)
+            logging.warning(result)
 
         def auto_check(self, func_name, *args):
             """
@@ -267,15 +274,23 @@ class _Readers:
     @check_for_errors(Errors.OneOrMoreReadersAreConnected)
     def update_readers(self, data: dict):
         """Заменяет все настройки ридеров переданными"""
-        # TODO возникает "Error in Module FEDM: Unknown transfer parameter or parameter value is out of valid range"
-        # TODO
-        return make_response(error=Errors.Error(100500, 'Not Implemented'))
-        # проводим валидация новых данных
-        # if 'reader_ids' not in data:
-        #     return make_response()
-        # удаляем старые данные
-        # self._readers = {}
-        # устанавливаем новые данные
+        # CHECK
+        if not isinstance(data, dict):
+            error = Errors.InvalidRequest('Запрос должен быть JSON-объектом')
+            error.log_warn('update_readers', data=data)
+            return make_response(error=error)
+
+        responses = {}
+        errors = {}
+
+        for reader_id in data:
+            response = Readers.update_reader(reader_id=reader_id, data=data[reader_id])
+            if 'error' in response:
+                errors.update({reader_id: response['error']})
+            else:
+                responses.update({reader_id: response['response']})
+
+        return make_response(error=errors, response=responses)
 
     @check_for_errors(Errors.ReadersListAlreadyIsEmpty, Errors.OneOrMoreReadersAreConnected)
     def delete_readers(self):
@@ -303,6 +318,8 @@ class _Readers:
             - data (dict): словарь со следущим возможным набором ключей: reader_id, bus_addr, port_number, state.
               При наличии в data ключа state произойдёт подключениие/отключение ридера
         """
+        # TODO возникает "Error in Module FEDM: Unknown transfer parameter or parameter value is out of valid range"
+        func_name = 'update_reader'
         # WARN TODO CHECK: обязательно нужно протестировать хорошо
         # TODO подумать, можно ли привести к виду получше
         result = {}
@@ -320,7 +337,7 @@ class _Readers:
 
         if 'state' in data:
             state = data['state']
-            if Errors.InvalidReaderState.auto_check('update_reader', state):
+            if Errors.InvalidReaderState.auto_check(func_name, state):
                 return make_response(error=Errors.InvalidReaderState)
             if data['state'] is True and result[reader_id]['state'] is False:
                 # ридер выключен, включаем
@@ -328,7 +345,7 @@ class _Readers:
                 r_code = reader.connect(result[reader_id]['bus_addr'], result[reader_id]['port_number'])
                 if r_code != 0:
                     error = Errors.Error(r_code, reader.get_error_text(r_code))
-                    error.log_warn('update_reader', reader_id=reader_id, data=data)
+                    error.log_warn(func_name, reader_id=reader_id, data=data)
                     return make_response(error=error)
                 result[reader_id]['reader'] = reader
                 result[reader_id]['state'] = True
@@ -341,9 +358,9 @@ class _Readers:
         if 'reader_id' in data \
                 and data['reader_id'] != reader_id:  # проверка на случай, если новый id совпадает со старым
             new_reader_id = data['reader_id']
-            if Errors.InvalidReaderId.auto_check('update_reader', new_reader_id):
+            if Errors.InvalidReaderId.auto_check(func_name, new_reader_id):
                 return make_response(error=Errors.InvalidReaderId)
-            if Errors.ReaderExists.auto_check('update_reader', new_reader_id):
+            if Errors.ReaderExists.auto_check(func_name, new_reader_id):
                 return make_response(error=Errors.ReaderExists)
             result[new_reader_id] = result.pop(reader_id)
             del self[reader_id]
