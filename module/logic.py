@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 import configparser as cp
+import logging as log
 
-from reader import Reader, log
+from reader import Reader
 
 __all__ = ('Readers',)
 
+# конфигурация логирования
+# "[logic] ERROR: 2017-03-06 15:03:24,589   [add_reader] Ридер с данным идентификатором существует"
+log.basicConfig(format='[%(module)s] %(levelname)s: %(asctime)-15s   %(message)s', level=log.WARNING)
 
-def make_response(response=None, error=None, error_params=None) -> dict:
+
+def make_response(response=None, error=None) -> dict:
     """
     Формулирует ответ на запрос
     Принимает:
@@ -19,8 +24,6 @@ def make_response(response=None, error=None, error_params=None) -> dict:
         result.update({'response': response})
     if error is not None:
         result.update({'error': {'error_code': error.code, 'error_msg': error.msg}})
-        if error_params is not None:
-            result['error'].update({'error_params': error_params})
     return result
 
 
@@ -28,17 +31,19 @@ def check_for_errors(*errors):
     """
     Декоратор для проверки наличия ошибок во время работы с RFID
     Применяется только к методам
+
+    Принимает:
+        - *errors (Errors.Error): ошибки, на которые необходимо провести проверку
     """
     # WARN для верной работы декоратора необходимо всегда указывать названия параметров при вызове декорируемых методов
     def check_decorator(func):
-        def wrapper(self, *args, **kwargs):  # self, так как декоратор применяется к методам
+        def wrapper(self, *args, **kwargs):  # указан self, так как декоратор применяется к методам
             for error in errors:
                 if len(args) > 0:
-                    log.warning(Errors.ArgsWithoutKeywords.log(func.__name__))
+                    Errors.ArgsWithoutKeywords.log_warn(func.__name__, *args, **kwargs)
                 if (error.param is None and error.check()) \
                         or (error.param in kwargs and error.check(kwargs[error.param])):
-                    # TODO сделать вывод более информативным
-                    log.error(error.log(func.__name__))
+                    error.log_warn(func.__name__, *args, **kwargs)
                     return make_response(error=error)
             return func(self, *args, **kwargs)
         return wrapper
@@ -56,27 +61,29 @@ class Errors:
             self.check = check  # функция для проверки (возвращает True в случае возникновения ошибки)
 
         def __call__(self, msg=None):
+            """Возвращает новый экземпляр класса Error с дополненным из параметра msg сообщением"""
             # Можно использовать для передачи дополнительной информации
             # Например:
             # Errors.InvalidReaderBusAddr(bus_addr)
             new_msg = '{0} ({1})'.format(self.msg, msg) if msg is not None else self.msg
             return Errors.Error(self.code, new_msg, self.param, self.check)
 
-        def log(self, func_name=None, *params) -> str:
+        def log_warn(self, func_name, *args, **kwargs) -> None:
             """
-            Возвращает строку, специально подготовленную для логирования
+            Производит логирование ошибки с использованием специального шаблона
             Шаблон: [func_name(params)] msg
             Принимает:
-                - func_name (str, необяз.): имя функции, в которой произошла ошибка
-                - *params: данные, которые привели к ошибке
+                - func_name (str): имя функции, в которой произошла ошибка
+                - *args, **kwargs: данные, которые привели к ошибке
             """
-            result = ''
-            if func_name is not None:
-                result += '[' + func_name
-            if len(params) > 0:
-                result += '(' + ', '.join(map(repr, params)) + ')'
-            result += '] ' + self.msg
-            return result
+            result = '[{}({})] {}'.format(
+                func_name,
+                ', '.join(tuple(map(repr, args)))
+                + (', ' if args and kwargs else '')
+                + ', '.join(tuple(map(lambda k: '{}={!r}'.format(k, kwargs[k]), kwargs))),
+                self.msg
+            )
+            log.warning(result)
 
         def auto_check(self, func_name, *args):
             """
@@ -88,7 +95,7 @@ class Errors:
             """
             result = self.check(*args)
             if result:
-                log.error(self.log(func_name))
+                self('AUTOCHECK').log_warn(func_name, *args)
             return result
 
     InvalidRequest = Error(
@@ -111,7 +118,7 @@ class Errors:
         5, 'Некорректное значение параметра состояния ридера',
         'state', lambda x: not isinstance(x, bool))
     InvalidTagId = Error(
-        6, 'Некорректное значение идентификатора метки')  # TODO возможно, не понадобится
+        6, 'Некорректное значение идентификатора метки')
     InvalidTagData = Error(
         7, 'Некорректное значение данных для записи в метку')
     ReaderExists = Error(
@@ -133,6 +140,7 @@ class Errors:
         13, 'Список ридеров уже пуст',
         None, lambda: len(Readers) == 0)
     # ошибка для внутренней работы (только для вывода в лог)
+    # TODO если работа будет осуществляться не через WebAPI, то должно быть передано: передавать в любом случае?
     ArgsWithoutKeywords = Error(
         100, 'Вызван метод без указания названий параметров, что может привести к неверной работе')
 
@@ -140,7 +148,7 @@ class Errors:
 class _Readers:
     """Хранение настроек ридеров и их состояний"""
     def __init__(self):
-        self._file = 'reader_settings.ini'  # путь к файлу с настройками ридеров
+        self.file = 'reader_settings.ini'  # путь к файлу с настройками ридеров
         # вид поля _readers:
         # {'идентификатор_ридера': {
         #     'bus_addr': 0,  # адрес шины (int)
@@ -176,7 +184,7 @@ class _Readers:
     def _read_settings(self):
         """Читает настройки из файла"""
         settings = cp.ConfigParser()
-        settings.read(self._file)
+        settings.read(self.file)
         self._update({
              reader_id: {
                 'bus_addr': int(settings[reader_id]['bus_addr']),
@@ -195,7 +203,7 @@ class _Readers:
                 'bus_addr': reader_settings['bus_addr'],
                 'port_number': reader_settings['port_number']
             }
-        with open(self._file, 'w') as file:
+        with open(self.file, 'w') as file:
             settings.write(file)
 
     def get_readers(self):
@@ -240,7 +248,9 @@ class _Readers:
                 reader = Reader()
                 r_code = reader.connect(bus_addr, port_number)
                 if r_code != 0:
-                    return make_response(error=Errors.Error(r_code, reader.get_error_text(r_code)))
+                    error = Errors.Error(r_code, reader.get_error_text(r_code))
+                    error.log_warn('add_reader', data=data)
+                    return make_response(error=error)
                 state = True
 
         self._update({
@@ -257,6 +267,7 @@ class _Readers:
     @check_for_errors(Errors.OneOrMoreReadersAreConnected)
     def update_readers(self, data: dict):
         """Заменяет все настройки ридеров переданными"""
+        # TODO возникает "Error in Module FEDM: Unknown transfer parameter or parameter value is out of valid range"
         # TODO
         return make_response(error=Errors.Error(100500, 'Not Implemented'))
         # проводим валидация новых данных
@@ -316,7 +327,9 @@ class _Readers:
                 reader = Reader()
                 r_code = reader.connect(result[reader_id]['bus_addr'], result[reader_id]['port_number'])
                 if r_code != 0:
-                    return make_response(error=Errors.Error(r_code, reader.get_error_text(r_code)))
+                    error = Errors.Error(r_code, reader.get_error_text(r_code))
+                    error.log_warn('update_reader', reader_id=reader_id, data=data)
+                    return make_response(error=error)
                 result[reader_id]['reader'] = reader
                 result[reader_id]['state'] = True
             elif data['state'] is False and result[reader_id]['state'] is True:
@@ -352,7 +365,9 @@ class _Readers:
         reader = self[reader_id]['reader']
         response = reader.inventory()
         if isinstance(response, int):
-            return make_response(error=Errors.Error(response, reader.get_error_text(response)))
+            error = Errors.Error(response, reader.get_error_text(response))
+            error.log_warn('inventory', reader_id=reader_id)
+            return make_response(error=error)
         return make_response(response=response)
 
     @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsDisconnected)
@@ -368,13 +383,16 @@ class _Readers:
         # TEMP нужно будет определиться с форматом данных на метках
         reader = self[reader_id]['reader']
 
+        # TODO если в запросе по ключу "data" будет пустой массив, ничего не вернётся
         if 'tag_ids' in data:
             # TODO валидация значений меток
             tag_ids = data['tag_ids']
         else:
             tag_ids = reader.inventory()
             if isinstance(tag_ids, int):
-                return make_response(error=Errors.Error(tag_ids, reader.get_error_text(tag_ids)))
+                error = Errors.Error(tag_ids, reader.get_error_text(tag_ids))
+                error.log_warn('read_tags', reader_id=reader_id, data=data)
+                return make_response(error=error)
 
         result = {}
         errors = {}
@@ -423,6 +441,8 @@ class _Readers:
                 tag_data = data[tag_id]
             r_code = reader.write_tag(tag_id, tag_data)  # TEMP
             if r_code != 0:
+                error = Errors.Error(r_code, reader.get_error_text(r_code))
+                error.log_warn('write_tags', reader_id=reader_id, tag_id=tag_id, tag_data=tag_data)
                 errors.update({tag_id: {'error_code': r_code, 'error_msg': reader.get_error_text(r_code)}})
             else:
                 result.update({tag_id: r_code})

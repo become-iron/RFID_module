@@ -1,12 +1,8 @@
 import ctypes
 import os
-import logging as log
 
 __all__ = ('Reader',)
 
-# конфигурация логирования
-# "[logic] ERROR: 2017-03-06 15:03:24,589   [add_reader] Ридер с данным идентификатором существует"
-log.basicConfig(format='[%(module)s] %(levelname)s: %(asctime)-15s   %(message)s', level=log.INFO)
 
 RFID_LIB = ctypes.CDLL(os.getcwd() + r'\RFID.dll')  # подключение библиотеки для работы с RFID-ридером
 # определение возвращаемых функциями типов данных
@@ -92,7 +88,6 @@ class Reader(object):
         text = RFID_LIB.get_error_text(self._reader, ctypes.c_int(code)).decode('utf-8')
         if len(text) == 0:
             text = 'Невалидный код ошибки: {0}'.format(code)
-        log.error(text)
         return text
 
 
