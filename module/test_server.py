@@ -2,10 +2,15 @@
 import unittest
 from requests import get, post, put, delete
 import os
+import logging
 import server
 
 
 class TestServer(unittest.TestCase):
+    def log(self, func_name, data):
+        result = '[{0}] Тест с ридером {1} не был проведен, так как ридер отключён'.format(func_name, data)
+        logging.warning(result)
+
     def test_documentation(self):
         for file in os.listdir("../docs/_build/html/"):
             if file.endswith(".html"):
@@ -22,7 +27,8 @@ class TestServer(unittest.TestCase):
     def test_add_reader(self):
         self.test_delete_readers()
         for i in range(5):
-            r = post(url='http://localhost:5000/readers/', json={"""reader_id""": str(i), """bus_addr""": i, """port_number""": i})
+            r = post(url='http://localhost:5000/readers/',
+                     json={"""reader_id""": str(i), """bus_addr""": i, """port_number""": i})
             self.assertEqual(r.json(), {"response": 0})
             self.assertEqual(r.status_code, 201)
 
@@ -72,59 +78,76 @@ class TestServer(unittest.TestCase):
             if amount != 0:
                 self.assertEqual(r.json(), {"response": 0})
             else:
-                self.assertEqual(r.json(), {'error': {'error_code': 9, 'error_msg': 'Ридера с данным идентификатором не существует'}})
+                self.assertEqual(r.json(), {'error': {'error_code': 9,
+                                                      'error_msg': 'Ридера с данным идентификатором не существует'}})
             self.assertEqual(r.status_code, 200)
 
     def test_inventory(self):
+        readers = get('http://localhost:5000/readers/').json()['response']
         for i in range(5):
-            r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/inventory/')
-            self.assertEqual(r.status_code, 200)
+            if readers[str(i)]['state'] is True:
+                r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/inventory/')
+                self.assertEqual(r.status_code, 200)
+            else:
+                self.log(self.test_clear_tags.__name__, i)
 
     def test_read_tags(self):
+        readers = get('http://localhost:5000/readers/').json()['response']
         for i in range(5):
-            r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/',
-                    json=[])
-            self.assertEqual(r.status_code, 200)
-
-            r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/inventory/')
-            self.assertEqual(r.status_code, 200)
-            resp = r.json()['response']
-
-            r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/',
-                    json=resp)
-            self.assertEqual(r.status_code, 200)
-
-            for j in resp:
+            if readers[str(i)]['state'] is True:
                 r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/',
-                        json=list(j))
+                        json=[])
                 self.assertEqual(r.status_code, 200)
+
+                r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/inventory/')
+                self.assertEqual(r.status_code, 200)
+                resp = r.json()['response']
+
+                r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/',
+                        json=resp)
+                self.assertEqual(r.status_code, 200)
+
+                for j in resp:
+                    r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/',
+                            json=list(j))
+                    self.assertEqual(r.status_code, 200)
+            else:
+                self.log(self.test_clear_tags.__name__, i)
 
     def test_write_tags(self):
+        readers = get('http://localhost:5000/readers/').json()['response']
         for i in range(5):
-            r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/inventory/')
-            self.assertEqual(r.status_code, 200)
-            resp = r.json()['response']
-            data = {n: str(m) + ' done' for m, n in enumerate(resp)}
+            if readers[str(i)]['state'] is True:
+                r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/inventory/')
+                self.assertEqual(r.status_code, 200)
+                resp = r.json()['response']
+                data = {n: str(m) + ' done' for m, n in enumerate(resp)}
 
-            r = put(url='http://localhost:5000/readers/' + str(i) + '/tags/',
-                    json=data)
-            self.assertEqual(r.status_code, 200)
+                r = put(url='http://localhost:5000/readers/' + str(i) + '/tags/',
+                        json=data)
+                self.assertEqual(r.status_code, 200)
+            else:
+                self.log(self.test_clear_tags.__name__, i)
 
     def test_clear_tags(self):
+        readers = get('http://localhost:5000/readers/').json()['response']
         for i in range(5):
-            r = delete(url='http://localhost:5000/readers/' + str(i) + '/tags/',
-                       json=[])
-            self.assertEqual(r.status_code, 200)
-
-            r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/inventory/')
-            self.assertEqual(r.status_code, 200)
-            resp = r.json()['response']
-
-            r = delete(url='http://localhost:5000/readers/' + str(i) + '/tags/',
-                       json=resp)
-            self.assertEqual(r.status_code, 200)
-
-            for j in resp:
-                r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/',
-                        json=list(j))
+            if readers[str(i)]['state'] is True:
+                r = delete(url='http://localhost:5000/readers/' + str(i) + '/tags/',
+                           json=[])
                 self.assertEqual(r.status_code, 200)
+
+                r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/inventory/')
+                self.assertEqual(r.status_code, 200)
+                resp = r.json()['response']
+
+                r = delete(url='http://localhost:5000/readers/' + str(i) + '/tags/',
+                           json=resp)
+                self.assertEqual(r.status_code, 200)
+
+                for j in resp:
+                    r = get(url='http://localhost:5000/readers/' + str(i) + '/tags/',
+                            json=list(j))
+                    self.assertEqual(r.status_code, 200)
+            else:
+                self.log(self.test_clear_tags.__name__, i)
