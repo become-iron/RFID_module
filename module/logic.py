@@ -11,29 +11,6 @@ __all__ = ('Readers',)
 logging.basicConfig(format='[%(module)s] %(levelname)s: %(asctime)-15s   %(message)s', level=logging.WARNING)
 
 
-def make_response(response=None, error=None) -> dict:
-    """
-    Формулирует ответ на запрос
-    Принимает:
-        - response: данные, которые необходимо вернут
-        - error (Errors.Error or Any): ошибка
-
-    Если response is None and error is None, то возвращает {'response': 0}
-    """
-    # TODO подумать над тем, чтобы сделать декоратором или над тем, нужна ли вообще эта функция
-    result = {}
-    if response is not None:
-        result.update({'response': response})
-    if error is not None:
-        if isinstance(error, Errors.Error):
-            result.update({'error': {'error_code': error.code, 'error_msg': error.msg}})
-        else:
-            result.update({'error': error})
-    if response is None and error is None:
-        result = {'response': 0}
-    return result
-
-
 def check_for_errors(*errors):
     """
     Декоратор для проверки наличия ошибок во время работы с RFID
@@ -51,7 +28,7 @@ def check_for_errors(*errors):
                 if (error.param is None and error.check()) \
                         or (error.param in kwargs and error.check(kwargs[error.param])):
                     error.log_warn(func.__name__, *args, **kwargs)
-                    return make_response(error=error)
+                    return dict(error=error.to_dict())
             return func(self, *args, **kwargs)
         return wrapper
     return check_decorator
@@ -104,6 +81,9 @@ class Errors:
             if result:
                 self('AUTOCHECK').log_warn(func_name, *args)
             return result
+
+        def to_dict(self) -> dict:
+            return {'error_code': self.code, 'error_msg': self.msg}
 
     InvalidRequest = Error(
         0, 'Некорректный запрос'
@@ -223,7 +203,7 @@ class _Readers:
             }
             for reader_id in self
             }
-        return make_response(response=result)
+        return dict(response=result)
 
     @check_for_errors(Errors.InvalidParameterSet)
     def add_reader(self, data: dict):
@@ -246,18 +226,18 @@ class _Readers:
                  (Errors.InvalidReaderBusAddr, bus_addr),
                  (Errors.InvalidReaderPortNumber, port_number)):
             if error.auto_check('add_reader', param):
-                return make_response(error=error)
+                return dict(error=error.to_dict())
 
         if 'state' in data:
             if Errors.InvalidReaderState.auto_check('add_reader', data['state']):
-                return make_response(error=Errors.InvalidReaderState)
+                return dict(error=Errors.InvalidReaderState.to_dict())
             if data['state'] is True:
                 reader = Reader()
                 r_code = reader.connect(bus_addr, port_number)
                 if r_code != 0:
                     error = Errors.Error(r_code, reader.get_error_text(r_code))
                     error.log_warn('add_reader', data=data)
-                    return make_response(error=error)
+                    return dict(error=error.to_dict())
                 state = True
 
         self._update({
@@ -269,16 +249,17 @@ class _Readers:
             }
         })
         self._save_settings()
-        return make_response(response=0)
+        return dict(response=0)
 
     @check_for_errors(Errors.OneOrMoreReadersAreConnected)
     def update_readers(self, data: dict):
         """Заменяет все настройки ридеров переданными"""
         # CHECK
         if not isinstance(data, dict):
+            # TODO сделать как отдельную ошибку?
             error = Errors.InvalidRequest('Запрос должен быть JSON-объектом')
             error.log_warn('update_readers', data=data)
-            return make_response(error=error)
+            return dict(error=error.to_dict())
 
         responses = {}
         errors = {}
@@ -290,14 +271,14 @@ class _Readers:
             else:
                 responses.update({reader_id: response['response']})
 
-        return make_response(error=errors, response=responses)
+        return dict(error=errors, response=responses)
 
     @check_for_errors(Errors.ReadersListAlreadyIsEmpty, Errors.OneOrMoreReadersAreConnected)
     def delete_readers(self):
         """Удаляет ридеры"""
         self._readers = {}
         self._save_settings()
-        return make_response(response=0)
+        return dict(response=0)
 
     @check_for_errors(Errors.ReaderNotExists)
     def get_reader(self, reader_id: str):
@@ -307,7 +288,7 @@ class _Readers:
             'port_number': self[reader_id]['port_number'],
             'state': self[reader_id]['state']
         }}
-        return make_response(response=result)
+        return dict(response=result)
 
     @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsConnected)
     def update_reader(self, reader_id: str, data: dict):
@@ -332,13 +313,13 @@ class _Readers:
                  (Errors.InvalidReaderPortNumber, 'port_number')):
             if param in data:
                 if error.auto_check('update_reader', data[param]):
-                    return make_response(error=error)
+                    return dict(error=error.to_dict())
                 result[reader_id][param] = data[param]
 
         if 'state' in data:
             state = data['state']
             if Errors.InvalidReaderState.auto_check(func_name, state):
-                return make_response(error=Errors.InvalidReaderState)
+                return dict(error=Errors.InvalidReaderState.to_dict())
             if data['state'] is True and result[reader_id]['state'] is False:
                 # ридер выключен, включаем
                 reader = Reader()
@@ -346,7 +327,7 @@ class _Readers:
                 if r_code != 0:
                     error = Errors.Error(r_code, reader.get_error_text(r_code))
                     error.log_warn(func_name, reader_id=reader_id, data=data)
-                    return make_response(error=error)
+                    return dict(error=error.to_dict())
                 result[reader_id]['reader'] = reader
                 result[reader_id]['state'] = True
             elif data['state'] is False and result[reader_id]['state'] is True:
@@ -359,22 +340,22 @@ class _Readers:
                 and data['reader_id'] != reader_id:  # проверка на случай, если новый id совпадает со старым
             new_reader_id = data['reader_id']
             if Errors.InvalidReaderId.auto_check(func_name, new_reader_id):
-                return make_response(error=Errors.InvalidReaderId)
+                return dict(error=Errors.InvalidReaderId.to_dict())
             if Errors.ReaderExists.auto_check(func_name, new_reader_id):
-                return make_response(error=Errors.ReaderExists)
+                return dict(error=Errors.ReaderExists.to_dict())
             result[new_reader_id] = result.pop(reader_id)
             del self[reader_id]
 
         self._update(result)
         self._save_settings()
-        return make_response(response=0)
+        return dict(response=0)
 
     @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsConnected)
     def delete_reader(self, reader_id: str):
         """Удаляет ридер"""
         del self[reader_id]
         self._save_settings()
-        return make_response(response=0)
+        return dict(response=0)
 
     @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsDisconnected)
     def inventory(self, reader_id: str):
@@ -384,8 +365,8 @@ class _Readers:
         if isinstance(response, int):
             error = Errors.Error(response, reader.get_error_text(response))
             error.log_warn('inventory', reader_id=reader_id)
-            return make_response(error=error)
-        return make_response(response=response)
+            return dict(error=error.to_dict())
+        return dict(response=response)
 
     @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsDisconnected)
     def read_tags(self, reader_id: str, data: dict):
@@ -409,7 +390,7 @@ class _Readers:
             if isinstance(tag_ids, int):
                 error = Errors.Error(tag_ids, reader.get_error_text(tag_ids))
                 error.log_warn('read_tags', reader_id=reader_id, data=data)
-                return make_response(error=error)
+                return dict(error=error.to_dict())
 
         result = {}
         errors = {}
@@ -423,7 +404,7 @@ class _Readers:
         result = None if len(result) == 0 else result
         errors = None if len(errors) == 0 else errors
 
-        return make_response(response=result, error=errors)
+        return dict(response=result, error=errors)
 
     @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsDisconnected)
     def write_tags(self, reader_id: str, data: dict, clear=False):
@@ -441,9 +422,6 @@ class _Readers:
                 ...
             }
         """
-        # WARN из-за того, что для очистки меток не используется отдельная \
-        # WARN функция, при логировании будет выходить название этой
-
         # TEMP нужно будет определиться с форматом данных на метках
         reader = self[reader_id]['reader']
 
@@ -467,7 +445,7 @@ class _Readers:
         result = None if len(result) == 0 else result
         errors = None if len(errors) == 0 else errors
 
-        return make_response(response=result, error=errors)
+        return dict(response=result, error=errors)
 
 
 Readers = _Readers()  # WARN: объект в глобальной области видимости, через который следует работать с ридерами
@@ -486,4 +464,3 @@ if __name__ == '__main__':
     # print(len(Readers))
     # pprint(Errors.__dict__)
     # print(Errors.InvalidReaderBusAddr('meow'))
-
