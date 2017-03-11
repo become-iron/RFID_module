@@ -217,12 +217,22 @@ class Application(tk.Frame):
 
         bus_addr = int(bus_addr)
         port_number = int(port_number)
-        reader_state = True if reader_state == 'Подключен' else False
+        reader_state = True if reader_state == 'Подключен' else False  # TODO
 
-        response = Readers.update_reader(
-            reader_id=reader_id,
-            data={'bus_addr': bus_addr, 'port_number': port_number, 'state': reader_state}
-        )
+        sel_reader = self.sel_reader.get()
+
+        if sel_reader == '':
+            response = Readers.update_reader(
+                reader_id=reader_id,
+                data={'bus_addr': bus_addr, 'port_number': port_number, 'state': reader_state}
+            )
+        else:
+            # обновляется и идентификатор ридера
+            response = Readers.update_reader(
+                reader_id=sel_reader,
+                data={'reader_id': reader_id, 'bus_addr': bus_addr, 'port_number': port_number, 'state': reader_state}
+            )
+
         if 'error' in response:
             show_error(response)
             return
