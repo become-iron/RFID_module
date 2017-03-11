@@ -1,24 +1,24 @@
 # -*- coding: utf-8 -*-
 import unittest
 import logging
-from logic import Readers, Errors, make_response
+from logic import Readers, Errors
 
 
 class TestReaders(unittest.TestCase):
     # успешное завершение операции
     success_response = {'response': 0}
     # Некорректное значение идентификатора ридера
-    InvalidReaderId_response = make_response(error=Errors.InvalidReaderId)
+    InvalidReaderId_response = dict(error=Errors.InvalidReaderId.to_dict())
     # Невалидное значение параметра шины адреса
-    InvalidReaderBusAddr_response = make_response(error=Errors.InvalidReaderBusAddr)
+    InvalidReaderBusAddr_response = dict(error=Errors.InvalidReaderBusAddr.to_dict())
     # Невалидное значение параметра номера порта
-    InvalidReaderPortNumber_response = make_response(error=Errors.InvalidReaderPortNumber)
+    InvalidReaderPortNumber_response = dict(error=Errors.InvalidReaderPortNumber.to_dict())
     # Ридер с данным идентификатором существует
-    ReaderExists_response = make_response(error=Errors.ReaderExists)
+    ReaderExists_response = dict(error=Errors.ReaderExists.to_dict())
     # Ридера с данным идентификатором не существует
-    ReaderNotExists_response = make_response(error=Errors.ReaderNotExists)
+    ReaderNotExists_response = dict(error=Errors.ReaderNotExists.to_dict())
     # Список ридеров уже пуст
-    ReadersListAlreadyIsEmpty_response = make_response(error=Errors.ReadersListAlreadyIsEmpty)
+    ReadersListAlreadyIsEmpty_response = dict(error=Errors.ReadersListAlreadyIsEmpty.to_dict())
 
     def log(self, func_name, data):
         result = '[{0}] Тест с ридером {1} не был проведен, так как ридер отключён'.format(func_name, data)
