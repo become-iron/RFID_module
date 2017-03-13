@@ -12,6 +12,8 @@ def show_error(response):
         .format(response['error']['error_code'], response['error']['error_msg'])
     messagebox.showerror(message=msg)
 
+# TODO при выходе из программы, отключать ридеры
+
 
 # noinspection PyAttributeOutsideInit
 class Application(tk.Frame):
@@ -221,7 +223,8 @@ class Application(tk.Frame):
 
         sel_reader = self.sel_reader.get()
 
-        if sel_reader == '':
+        # TODO не обновлять неизменённые параметры
+        if sel_reader == '' or sel_reader == reader_id:
             response = Readers.update_reader(
                 reader_id=reader_id,
                 data={'bus_addr': bus_addr, 'port_number': port_number, 'state': reader_state}
