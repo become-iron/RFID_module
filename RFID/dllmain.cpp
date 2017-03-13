@@ -1,4 +1,4 @@
-#include "FedmIscCore.h"
+п»ї#include "FedmIscCore.h"
 #include <iostream>
 using namespace std;
 
@@ -12,20 +12,20 @@ extern "C"
 
     __declspec(dllexport) int connect_reader(FEDM_ISCReaderModule * reader, unsigned char bus_addr, int port_number)
     {
-        // установка шины адреса
+        // СѓСЃС‚Р°РЅРѕРІРєР° С€РёРЅС‹ Р°РґСЂРµСЃР°
         reader->SetBusAddress(bus_addr);
-        // установка размера таблицы (до 100 меток во время инвентаризации в Host-Mode)
+        // СѓСЃС‚Р°РЅРѕРІРєР° СЂР°Р·РјРµСЂР° С‚Р°Р±Р»РёС†С‹ (РґРѕ 100 РјРµС‚РѕРє РІРѕ РІСЂРµРјСЏ РёРЅРІРµРЅС‚Р°СЂРёР·Р°С†РёРё РІ Host-Mode)
         reader->SetTableSize(FEDM_ISC_ISO_TABLE, 100);
-        // поддержка TagHandler
+        // РїРѕРґРґРµСЂР¶РєР° TagHandler
         reader->EnableTagHandler(true);
-        // получить информацию о типе ридера
+        // РїРѕР»СѓС‡РёС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ С‚РёРїРµ СЂРёРґРµСЂР°
         reader->ReadReaderInfo();
-        // подключиться к COM-порту
+        // РїРѕРґРєР»СЋС‡РёС‚СЊСЃСЏ Рє COM-РїРѕСЂС‚Сѓ
         int r_code = reader->ConnectCOMM(port_number);
 
         if (r_code == 0)
         {
-            // определение скорости передачи данных
+            // РѕРїСЂРµРґРµР»РµРЅРёРµ СЃРєРѕСЂРѕСЃС‚Рё РїРµСЂРµРґР°С‡Рё РґР°РЅРЅС‹С…
             r_code = reader->FindBaudRate();
 
             if (r_code == 0)
@@ -46,75 +46,84 @@ extern "C"
 
 
     /*
-    Функция ищет транспондеры в зоне действия антенны и получает информацию о них
-    Принимает:
-        snr_array - ссылка на массив, в который запишутся идентификаторы транспондеров
+    Р¤СѓРЅРєС†РёСЏ РёС‰РµС‚ С‚СЂР°РЅСЃРїРѕРЅРґРµСЂС‹ РІ Р·РѕРЅРµ РґРµР№СЃС‚РІРёСЏ Р°РЅС‚РµРЅРЅС‹ Рё РїРѕР»СѓС‡Р°РµС‚ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РЅРёС…
+    РџСЂРёРЅРёРјР°РµС‚:
+        snr_array - СЃСЃС‹Р»РєР° РЅР° РјР°СЃСЃРёРІ, РІ РєРѕС‚РѕСЂС‹Р№ Р·Р°РїРёС€СѓС‚СЃСЏ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂС‹ С‚СЂР°РЅСЃРїРѕРЅРґРµСЂРѕРІ
     */
-     __declspec(dllexport) int inventory(FEDM_ISCReaderModule * reader, char ** snr_array)
+     __declspec(dllexport) int inventory(FEDM_ISCReaderModule * reader, unsigned char ** snr_array)
     {
         unsigned char trans_type = 0;
-        char * serial_number = new char [255];
-        int block_len = 4;
+        CString sNR;
 
-        // установка параметров для следующего протокола 
-        // команда инвентаризации
+        // СѓСЃС‚Р°РЅРѕРІРєР° РїР°СЂР°РјРµС‚СЂРѕРІ РґР»СЏ СЃР»РµРґСѓСЋС‰РµРіРѕ РїСЂРѕС‚РѕРєРѕР»Р° 
+        // РєРѕРјР°РЅРґР° РёРЅРІРµРЅС‚Р°СЂРёР·Р°С†РёРё
         reader->SetData(FEDM_ISC_TMP_B0_CMD, (unsigned char)0x01);
-        // очистка флагов
+        // РѕС‡РёСЃС‚РєР° С„Р»Р°РіРѕРІ
         reader->SetData(FEDM_ISC_TMP_B0_MODE, (unsigned char)0x00);
-        // освобождение места для следующего инвентаря
+        // РѕСЃРІРѕР±РѕР¶РґРµРЅРёРµ РјРµСЃС‚Р° РґР»СЏ СЃР»РµРґСѓСЋС‰РµРіРѕ РёРЅРІРµРЅС‚Р°СЂСЏ
         reader->ResetTable(FEDM_ISC_ISO_TABLE);
-        // отправка протокола инвентаризации
+        // РѕС‚РїСЂР°РІРєР° РїСЂРѕС‚РѕРєРѕР»Р° РёРЅРІРµРЅС‚Р°СЂРёР·Р°С†РёРё
         int r_code = reader->SendProtocol(0xB0);
 
         if(r_code == 0)
         {
-            // заполнение таблицы данными о транспондерах
+            // Р·Р°РїРѕР»РЅРµРЅРёРµ С‚Р°Р±Р»РёС†С‹ РґР°РЅРЅС‹РјРё Рѕ С‚СЂР°РЅСЃРїРѕРЅРґРµСЂР°С…
             for (int idx=0; idx < reader->GetTableLength(FEDM_ISC_ISO_TABLE); idx++)
             {
                 cout << idx << endl;
-                // получение типа транспондера
+                // РїРѕР»СѓС‡РµРЅРёРµ С‚РёРїР° С‚СЂР°РЅСЃРїРѕРЅРґРµСЂР°
                 reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_TRTYPE, &trans_type);
-                // получение строки с идентификатором транспондера
-                reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR, serial_number, block_len); // TODO: Выяснить, какой тип должен быть у serial_number: char или unsigned char
-                // запись идентификатора транспондера в массив                
-                snr_array[idx] = serial_number;
+                // РїРѕР»СѓС‡РµРЅРёРµ СЃС‚СЂРѕРєРё СЃ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂРѕРј С‚СЂР°РЅСЃРїРѕРЅРґРµСЂР°
+                reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR, sNR); // TODO: Р’С‹СЏСЃРЅРёС‚СЊ, РєР°РєРѕР№ С‚РёРї РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Сѓ serial_number: char РёР»Рё unsigned char
+                // Р·Р°РїРёСЃСЊ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂР° С‚СЂР°РЅСЃРїРѕРЅРґРµСЂР° РІ РјР°СЃСЃРёРІ
+                cout << sNR << endl;
+                for (int i = 0; i < 255; i++)
+                {
+                    snr_array[idx][i] = sNR[i];
+                }
+                for (int i = 0; i < 255; i++)
+                {
+                    cout << snr_array[idx][i];
+                }
+                cout << endl;
+
+                    
             }
         }
 
-        delete [] serial_number;
 
         return r_code;
     }
 
 
     /*
-    Функция выполняет считывание данных с одного транспондера
-    Принимает:
-        serial_number - идентификатор транспондера            
-        read_data - массив, в который будут записаны считанные данные
-        first_block - блок, с которого начинается считывание
-        amount - количество блоков, которые нужно считать
+    Р¤СѓРЅРєС†РёСЏ РІС‹РїРѕР»РЅСЏРµС‚ СЃС‡РёС‚С‹РІР°РЅРёРµ РґР°РЅРЅС‹С… СЃ РѕРґРЅРѕРіРѕ С‚СЂР°РЅСЃРїРѕРЅРґРµСЂР°
+    РџСЂРёРЅРёРјР°РµС‚:
+        serial_number - РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ С‚СЂР°РЅСЃРїРѕРЅРґРµСЂР°            
+        read_data - РјР°СЃСЃРёРІ, РІ РєРѕС‚РѕСЂС‹Р№ Р±СѓРґСѓС‚ Р·Р°РїРёСЃР°РЅС‹ СЃС‡РёС‚Р°РЅРЅС‹Рµ РґР°РЅРЅС‹Рµ
+        first_block - Р±Р»РѕРє, СЃ РєРѕС‚РѕСЂРѕРіРѕ РЅР°С‡РёРЅР°РµС‚СЃСЏ СЃС‡РёС‚С‹РІР°РЅРёРµ
+        amount - РєРѕР»РёС‡РµСЃС‚РІРѕ Р±Р»РѕРєРѕРІ, РєРѕС‚РѕСЂС‹Рµ РЅСѓР¶РЅРѕ СЃС‡РёС‚Р°С‚СЊ
     */
-      // TODO (nb): для serial_number, наверное, просто char const *
+      // TODO (nb): РґР»СЏ serial_number, РЅР°РІРµСЂРЅРѕРµ, РїСЂРѕСЃС‚Рѕ char const *
      __declspec(dllexport) int read_tag(FEDM_ISCReaderModule * reader, char * const & serial_number, char ** read_data)
     {
         unsigned char first_block = 0;
         unsigned char amount = 255;
-        int r_code = 0; // код ошибок ридера
+        int r_code = 0; // РєРѕРґ РѕС€РёР±РѕРє СЂРёРґРµСЂР°
 
-        // установка параметров для следующего протокола
-        // команда считывания данных
+        // СѓСЃС‚Р°РЅРѕРІРєР° РїР°СЂР°РјРµС‚СЂРѕРІ РґР»СЏ СЃР»РµРґСѓСЋС‰РµРіРѕ РїСЂРѕС‚РѕРєРѕР»Р°
+        // РєРѕРјР°РЅРґР° СЃС‡РёС‚С‹РІР°РЅРёСЏ РґР°РЅРЅС‹С…
         reader->SetData(FEDM_ISC_TMP_B0_CMD, (unsigned char)0x23);
-        // режим адресации
+        // СЂРµР¶РёРј Р°РґСЂРµСЃР°С†РёРё
         reader->SetData(FEDM_ISC_TMP_B0_MODE, (unsigned char)0x01);
-        // выбор транспондера по идентификатору
+        // РІС‹Р±РѕСЂ С‚СЂР°РЅСЃРїРѕРЅРґРµСЂР° РїРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ
         reader->SetData(FEDM_ISC_TMP_B0_REQ_UID, serial_number);
-        // определение места считывания
+        // РѕРїСЂРµРґРµР»РµРЅРёРµ РјРµСЃС‚Р° СЃС‡РёС‚С‹РІР°РЅРёСЏ
         reader->SetData(FEDM_ISC_TMP_B0_REQ_DB_ADR, first_block);
-        // определение количества данных для считывания
+        // РѕРїСЂРµРґРµР»РµРЅРёРµ РєРѕР»РёС‡РµСЃС‚РІР° РґР°РЅРЅС‹С… РґР»СЏ СЃС‡РёС‚С‹РІР°РЅРёСЏ
         reader->SetData(FEDM_ISC_TMP_B0_REQ_DBN, amount);
         
-        // отправка протокола считывания блоков
+        // РѕС‚РїСЂР°РІРєР° РїСЂРѕС‚РѕРєРѕР»Р° СЃС‡РёС‚С‹РІР°РЅРёСЏ Р±Р»РѕРєРѕРІ
         r_code = reader->SendProtocol(0xB0);
 
         return r_code;
@@ -122,39 +131,39 @@ extern "C"
 
 
     /*
-    Функция выполняет запись данных на один транспондер
-    Принимает:
-        serial_number - идентификатор транспондера          
-        write_data - массив данных, которые будут записаны
-        first_block - блок, с которого начинается считывание
+    Р¤СѓРЅРєС†РёСЏ РІС‹РїРѕР»РЅСЏРµС‚ Р·Р°РїРёСЃСЊ РґР°РЅРЅС‹С… РЅР° РѕРґРёРЅ С‚СЂР°РЅСЃРїРѕРЅРґРµСЂ
+    РџСЂРёРЅРёРјР°РµС‚:
+        serial_number - РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ С‚СЂР°РЅСЃРїРѕРЅРґРµСЂР°          
+        write_data - РјР°СЃСЃРёРІ РґР°РЅРЅС‹С…, РєРѕС‚РѕСЂС‹Рµ Р±СѓРґСѓС‚ Р·Р°РїРёСЃР°РЅС‹
+        first_block - Р±Р»РѕРє, СЃ РєРѕС‚РѕСЂРѕРіРѕ РЅР°С‡РёРЅР°РµС‚СЃСЏ СЃС‡РёС‚С‹РІР°РЅРёРµ
     */
      __declspec(dllexport) int write_tag(FEDM_ISCReaderModule * reader, char * serial_number,  char ** write_data)    
     {
         unsigned char first_block = 0;
-        int r_code = 0; // код ошибок ридера
-        int idx = 0;    // идентификатор блока
-        unsigned char block_size = 0;   // размер одного блока данных в байтах
-        unsigned char data[16]; // буфер для 4 блоков данных по 4 байта
+        int r_code = 0; // РєРѕРґ РѕС€РёР±РѕРє СЂРёРґРµСЂР°
+        int idx = 0;    // РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р±Р»РѕРєР°
+        unsigned char block_size = 0;   // СЂР°Р·РјРµСЂ РѕРґРЅРѕРіРѕ Р±Р»РѕРєР° РґР°РЅРЅС‹С… РІ Р±Р°Р№С‚Р°С…
+        unsigned char data[16]; // Р±СѓС„РµСЂ РґР»СЏ 4 Р±Р»РѕРєРѕРІ РґР°РЅРЅС‹С… РїРѕ 4 Р±Р°Р№С‚Р°
         int data_len = 4;
         int block_len = 4;
 
-        // поиск данных о транспондере в таблице по идентификатору
-        idx = reader->FindTableIndex(0, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR, serial_number);  // TODO (nb): тут что-то не то в сигнатуре
+        // РїРѕРёСЃРє РґР°РЅРЅС‹С… Рѕ С‚СЂР°РЅСЃРїРѕРЅРґРµСЂРµ РІ С‚Р°Р±Р»РёС†Рµ РїРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ
+        idx = reader->FindTableIndex(0, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR, serial_number);  // TODO (nb): С‚СѓС‚ С‡С‚Рѕ-С‚Рѕ РЅРµ С‚Рѕ РІ СЃРёРіРЅР°С‚СѓСЂРµ
 
         if(idx >= 0)
         {
-            // получение размера блока
+            // РїРѕР»СѓС‡РµРЅРёРµ СЂР°Р·РјРµСЂР° Р±Р»РѕРєР°
             reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_BLOCK_SIZE, &block_size);
                 
-            // получение данных из таблицы
+            // РїРѕР»СѓС‡РµРЅРёРµ РґР°РЅРЅС‹С… РёР· С‚Р°Р±Р»РёС†С‹
             for(int i=0; i<data_len; i++)
                 reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, first_block, &data[i*block_size], block_len);
                 
-            // сборка данных для протокола отправки
+            // СЃР±РѕСЂРєР° РґР°РЅРЅС‹С… РґР»СЏ РїСЂРѕС‚РѕРєРѕР»Р° РѕС‚РїСЂР°РІРєРё
             for(int i=0; i<data_len; i++)
                 reader->SetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_TxDB, first_block, &data[i*block_size], block_size);
                 
-            // отправка протокола записи блоков
+            // РѕС‚РїСЂР°РІРєР° РїСЂРѕС‚РѕРєРѕР»Р° Р·Р°РїРёСЃРё Р±Р»РѕРєРѕРІ
             reader->SetData(FEDM_ISC_TMP_B0_CMD, (unsigned char)0x24);
             r_code = reader->SendProtocol(0xB0);
         }
