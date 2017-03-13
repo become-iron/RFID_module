@@ -47,10 +47,13 @@ class Reader(object):
     def inventory(self) -> tuple or int:
         """Возвращает идентификаторы меток"""
         # TODO
-        tag_ids = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)()
+        tag_ids = ((ctypes.c_ubyte * 255) * DEF_AMOUNT_OF_TAGS)()
         r_code = RFID_LIB.inventory(self._reader, tag_ids)
-        if r_code != 0:
-            return tuple(tag_id.decode('utf-8') for tag_id in tag_ids)
+        print(tag_ids)
+        print(*tag_ids)
+        print(*(tag_id.raw for tag_id in tag_ids))
+        if r_code == 0:
+            return tuple(tag_id.raw for tag_id in tag_ids)
         else:
             return r_code
 
