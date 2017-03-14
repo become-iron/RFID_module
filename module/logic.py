@@ -24,10 +24,10 @@ def check_for_errors(*errors):
         def wrapper(self, *args, **kwargs):  # указан self, так как декоратор применяется к методам
             for error in errors:
                 if len(args) > 0:
-                    Errors.ArgsWithoutKeywords.log_warn(func.__name__, *args, **kwargs)
+                    Errors.ArgsWithoutKeywords.log_error(func.__name__, *args, **kwargs)
                 if (error.param is None and error.check()) \
                         or (error.param in kwargs and error.check(kwargs[error.param])):
-                    error.log_warn(func.__name__, *args, **kwargs)
+                    error.log_error(func.__name__, *args, **kwargs)
                     return dict(error=error.to_dict())
             return func(self, *args, **kwargs)
         return wrapper
@@ -52,7 +52,7 @@ class Errors:
             new_msg = '{0} ({1})'.format(self.msg, msg) if msg is not None else self.msg
             return Errors.Error(self.code, new_msg, self.param, self.check)
 
-        def log_warn(self, func_name, *args, **kwargs) -> None:
+        def log_error(self, func_name, *args, **kwargs) -> None:
             """
             Производит логирование ошибки с использованием специального шаблона
             Шаблон: [func_name(params)] msg
@@ -79,7 +79,7 @@ class Errors:
             """
             result = self.check(*args)
             if result:
-                self('AUTOCHECK').log_warn(func_name, *args)
+                self('AUTOCHECK').log_error(func_name, *args)
             return result
 
         def to_dict(self) -> dict:
@@ -116,13 +116,13 @@ class Errors:
         'reader_id', lambda x: x not in Readers)
     ReaderIsConnected = Error(
         10, 'Операция не может быть совершена, так как ридер подключён',
-        'reader_id', lambda x: Readers[x]['state'] is True)
+        'reader_id', lambda x: Readers[x].connected is True)
     ReaderIsDisconnected = Error(
         11, 'Операция не может быть совершена, так как ридер отключён',
-        'reader_id', lambda x: Readers[x]['state'] is False)
+        'reader_id', lambda x: Readers[x].connected is False)
     OneOrMoreReadersAreConnected = Error(
         12, 'Операция не может совершена, так как один или больше ридеров подключены',
-        None, lambda: not all(map(lambda rid: Readers[rid]['state'] is False, Readers)))
+        None, lambda: not all(map(lambda rid: Readers[rid].connected is False, Readers)))
     ReadersListAlreadyIsEmpty = Error(
         13, 'Список ридеров уже пуст',
         None, lambda: len(Readers) == 0)
@@ -137,12 +137,7 @@ class _Readers:
     def __init__(self):
         self.file = 'reader_settings.ini'  # путь к файлу с настройками ридеров
         # вид поля _readers:
-        # {'идентификатор_ридера': {
-        #     'bus_addr': 0,  # адрес шины (int)
-        #     'port_number': 0,  # номер COM-порта (int)
-        #     'state': False,  # подключён или отключён ридер (bool): True - подключён, False - отключён
-        #     'reader': None,  # объект ридера (Reader) или None, если ридер отключён
-        # },
+        # {'идентификатор_ридера': Reader(1, 1),
         # ...}
         self._readers = {}
         self._read_settings()  # чтение настроек из файла при инициализации
@@ -173,22 +168,20 @@ class _Readers:
         settings = cp.ConfigParser()
         settings.read(self.file)
         self._update({
-             reader_id: {
-                'bus_addr': int(settings[reader_id]['bus_addr']),
-                'port_number': int(settings[reader_id]['port_number']),
-                'state': False,
-                'reader': None,
-             }
+             reader_id: Reader(
+                 int(settings[reader_id]['bus_addr']),
+                 int(settings[reader_id]['port_number'])
+             )
              for reader_id in settings if reader_id != 'DEFAULT'
         })
 
     def _save_settings(self):
         """Записывает настройки в файл"""
         settings = cp.ConfigParser()
-        for reader_id, reader_settings in sorted(self._items(), key=lambda x: x[0]):
+        for reader_id, reader in sorted(self._items(), key=lambda x: x[0]):
             settings[reader_id] = {
-                'bus_addr': reader_settings['bus_addr'],
-                'port_number': reader_settings['port_number']
+                'bus_addr': reader.bus_addr,
+                'port_number': reader.port_number
             }
         with open(self.file, 'w') as file:
             settings.write(file)
@@ -197,9 +190,9 @@ class _Readers:
         """Возвращает информацию о ридерах: идентификаторы, настройки, состояния"""
         result = {
             reader_id: {
-                'bus_addr': self[reader_id]['bus_addr'],
-                'port_number': self[reader_id]['port_number'],
-                'state': self[reader_id]['state'],
+                'bus_addr': self[reader_id].bus_addr,
+                'port_number': self[reader_id].port_number,
+                'state': self[reader_id].connected,
             }
             for reader_id in self
             }
@@ -213,54 +206,42 @@ class _Readers:
             - data (dict): словарь со следущим обязательным набором ключей: reader_id, bus_addr, port_number.
               При наличии в data необязательного ключа state==True произойдёт подключениие ридера
         """
-        # TODO добавить ли возможность сразу подключать ридер
-        # TODO такую ли структуру надо использовать?
+        func_name = 'add_reader'
+
         reader_id = data['reader_id']
         bus_addr = data['bus_addr']
         port_number = data['port_number']
-        state = False
-        reader = None
+
         for error, param in \
                 ((Errors.ReaderExists, reader_id),
                  (Errors.InvalidReaderId, reader_id),
                  (Errors.InvalidReaderBusAddr, bus_addr),
                  (Errors.InvalidReaderPortNumber, port_number)):
-            if error.auto_check('add_reader', param):
+            if error.auto_check(func_name, param):
                 return dict(error=error.to_dict())
 
+        reader = Reader(bus_addr, port_number)
+
         if 'state' in data:
-            if Errors.InvalidReaderState.auto_check('add_reader', data['state']):
-                return dict(error=Errors.InvalidReaderState.to_dict())
-            if data['state'] is True:
-                reader = Reader()
-                r_code = reader.connect(bus_addr, port_number)
+            state = data['state']
+            error = Errors.InvalidReaderState
+            if error.auto_check(func_name, state):
+                return dict(error=error.to_dict())
+            if state:
+                r_code = self[reader_id].connect()
                 if r_code != 0:
                     error = Errors.Error(r_code, reader.get_error_text(r_code))
-                    error.log_warn('add_reader', data=data)
+                    error.log_error('add_reader', data=data)
                     return dict(error=error.to_dict())
-                state = True
 
-        self._update({
-            reader_id: {
-                'bus_addr': bus_addr,
-                'port_number': port_number,
-                'state': state,
-                'reader': reader,
-            }
-        })
+        self._update({reader_id: reader})
+
         self._save_settings()
         return dict(response=0)
 
     @check_for_errors(Errors.OneOrMoreReadersAreConnected)
     def update_readers(self, data: dict):
         """Заменяет все настройки ридеров переданными"""
-        # CHECK
-        if not isinstance(data, dict):
-            # TODO сделать как отдельную ошибку?
-            error = Errors.InvalidRequest('Запрос должен быть JSON-объектом')
-            error.log_warn('update_readers', data=data)
-            return dict(error=error.to_dict())
-
         responses = {}
         errors = {}
 
@@ -284,13 +265,13 @@ class _Readers:
     def get_reader(self, reader_id: str):
         """Возвращает настройки и состояние ридера по идентификатору"""
         result = {reader_id: {
-            'bus_addr': self[reader_id]['bus_addr'],
-            'port_number': self[reader_id]['port_number'],
-            'state': self[reader_id]['state']
+            'bus_addr': self[reader_id].bus_addr,
+            'port_number': self[reader_id].port_number,
+            'state': self[reader_id].connected,
         }}
         return dict(response=result)
 
-    @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsConnected)
+    @check_for_errors(Errors.ReaderNotExists)
     def update_reader(self, reader_id: str, data: dict):
         """
         Обновляет настройки ридера
@@ -299,54 +280,56 @@ class _Readers:
             - data (dict): словарь со следущим возможным набором ключей: reader_id, bus_addr, port_number, state.
               При наличии в data ключа state произойдёт подключениие/отключение ридера
         """
-        # TODO возникает "Error in Module FEDM: Unknown transfer parameter or parameter value is out of valid range"
         func_name = 'update_reader'
-        # WARN TODO CHECK: обязательно нужно протестировать хорошо
-        # TODO подумать, можно ли привести к виду получше
-        result = {}
-        # CHECK: возможно, необходимо глубокое копирование, в частности проверить возможные траблы с копированием ридера
-        # копируем существующие настройки ридера
-        result.update({reader_id: {key: value for key, value in self[reader_id].items()}})
 
-        for error, param in \
-                ((Errors.InvalidReaderBusAddr, 'bus_addr'),
-                 (Errors.InvalidReaderPortNumber, 'port_number')):
+        # если в запросе нет ни одного параметра на обновление
+        if all(map(lambda x: x not in data, ('reader_id', 'bus_addr', 'port_number', 'state'))):
+            error = Errors.InvalidParameterSet
+            error.log_error(func_name, reader_id=reader_id, data=data)
+            return dict(error=error.to_dict())
+
+        for error, param in (
+                (Errors.ReaderExists, 'reader_id'),
+                (Errors.InvalidReaderId, 'reader_id'),
+                (Errors.InvalidReaderBusAddr, 'bus_addr'),
+                (Errors.InvalidReaderPortNumber, 'port_number'),
+                (Errors.InvalidReaderState, 'state'),):
             if param in data:
-                if error.auto_check('update_reader', data[param]):
+                if error.auto_check(func_name, data[param]):
                     return dict(error=error.to_dict())
-                result[reader_id][param] = data[param]
 
-        if 'state' in data:
-            state = data['state']
-            if Errors.InvalidReaderState.auto_check(func_name, state):
-                return dict(error=Errors.InvalidReaderState.to_dict())
-            if data['state'] is True and result[reader_id]['state'] is False:
-                # ридер выключен, включаем
-                reader = Reader()
-                r_code = reader.connect(result[reader_id]['bus_addr'], result[reader_id]['port_number'])
-                if r_code != 0:
-                    error = Errors.Error(r_code, reader.get_error_text(r_code))
-                    error.log_warn(func_name, reader_id=reader_id, data=data)
-                    return dict(error=error.to_dict())
-                result[reader_id]['reader'] = reader
-                result[reader_id]['state'] = True
-            elif data['state'] is False and result[reader_id]['state'] is True:
-                # ридер включён, выключаем
-                result[reader_id]['reader'].disconnect()
-                result[reader_id]['reader'] = None
-                result[reader_id]['state'] = False
+        reader = self[reader_id]
+        connected = reader.connected
 
-        if 'reader_id' in data \
-                and data['reader_id'] != reader_id:  # проверка на случай, если новый id совпадает со старым
-            new_reader_id = data['reader_id']
-            if Errors.InvalidReaderId.auto_check(func_name, new_reader_id):
-                return dict(error=Errors.InvalidReaderId.to_dict())
-            if Errors.ReaderExists.auto_check(func_name, new_reader_id):
-                return dict(error=Errors.ReaderExists.to_dict())
-            result[new_reader_id] = result.pop(reader_id)
-            del self[reader_id]
+        if connected and 'state' in data and not data['state']:  # отключить
+            self[reader_id].disconnect()
+            connected = False
 
-        self._update(result)
+        # попытка обновить параметры включенного ридера
+        if connected and ('reader_id' in data or 'bus_addr' in data or 'port_number' in data):
+            print(connected, reader_id, data, self._readers, sep='\n')
+            error = Errors.ReaderIsConnected
+            error.log_error(func_name, reader_id=reader_id, data=data)
+            return dict(error=error.to_dict())
+
+        if not connected:
+            if 'reader_id' in data:
+                new_reader_id = data['reader_id']
+                self._update({new_reader_id: self._readers.pop(reader_id)})
+                reader_id = new_reader_id
+                reader = self[reader_id]
+            if 'bus_addr' in data:
+                reader.bus_addr = data['bus_addr']
+            if 'port_number' in data:
+                reader.port_number = data['port_number']
+
+        if not connected and 'state' in data and data['state']:  # подключить
+            r_code = self[reader_id].connect()
+            if r_code != 0:
+                error = Errors.Error(r_code, reader.get_error_text(r_code))
+                error.log_error(func_name, reader_id=reader_id, data=data)
+                return dict(error=error.to_dict())
+
         self._save_settings()
         return dict(response=0)
 
@@ -360,11 +343,11 @@ class _Readers:
     @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsDisconnected)
     def inventory(self, reader_id: str):
         """Возвращает идентификаторы меток"""
-        reader = self[reader_id]['reader']
+        reader = self[reader_id]
         response = reader.inventory()
-        if isinstance(response, int):
+        if isinstance(response, int):  # произошла ошибка
             error = Errors.Error(response, reader.get_error_text(response))
-            error.log_warn('inventory', reader_id=reader_id)
+            error.log_error('inventory', reader_id=reader_id)
             return dict(error=error.to_dict())
         return dict(response=response)
 
@@ -379,7 +362,7 @@ class _Readers:
             ['1', '2', '3', ...]
         """
         # TEMP нужно будет определиться с форматом данных на метках
-        reader = self[reader_id]['reader']
+        reader = self[reader_id]
 
         # TODO если в запросе по ключу "data" будет пустой массив, ничего не вернётся
         if 'tag_ids' in data:
@@ -389,7 +372,7 @@ class _Readers:
             tag_ids = reader.inventory()
             if isinstance(tag_ids, int):
                 error = Errors.Error(tag_ids, reader.get_error_text(tag_ids))
-                error.log_warn('read_tags', reader_id=reader_id, data=data)
+                error.log_error('read_tags', reader_id=reader_id, data=data)
                 return dict(error=error.to_dict())
 
         result = {}
@@ -423,7 +406,7 @@ class _Readers:
             }
         """
         # TEMP нужно будет определиться с форматом данных на метках
-        reader = self[reader_id]['reader']
+        reader = self[reader_id]
 
         # TODO валидация значений меток
 
@@ -437,7 +420,7 @@ class _Readers:
             r_code = reader.write_tag(tag_id, tag_data)  # TEMP
             if r_code != 0:
                 error = Errors.Error(r_code, reader.get_error_text(r_code))
-                error.log_warn('write_tags', reader_id=reader_id, tag_id=tag_id, tag_data=tag_data)
+                error.log_error('write_tags', reader_id=reader_id, tag_id=tag_id, tag_data=tag_data)
                 errors.update({tag_id: {'error_code': r_code, 'error_msg': reader.get_error_text(r_code)}})
             else:
                 result.update({tag_id: r_code})

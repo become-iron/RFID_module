@@ -15,11 +15,26 @@ RFID_LIB.get_error_text.restype = ctypes.c_char_p
 
 DEF_AMOUNT_OF_TAGS = 10  #: максимальное количество меток по умолчанию
 
+# TODO
+# (пока не действует)
+# Принципы работы:
+# экземпляр класса FEDM_ISCReaderModule создаётся при коннекте ридера и удаляется при дисконнекте
+
+# TODO: привести типы в соответствии с C++-модулем
+
 
 class Reader(object):
     """Класс для управления ридером"""
-    def __init__(self):
-        self._reader = RFID_LIB.new_reader()
+    def __init__(self, bus_addr: int, port_number: int):
+        self.bus_addr = bus_addr  # адрес шины
+        self.port_number = port_number  # номер COM-порта
+        self.connected = False
+        self._reader = RFID_LIB.new_reader()  # указатель на объект ридера или None
+
+    # @property
+    # def connected(self):
+    #     """Подключен ли ридер"""
+    #     return self._reader is not None
 
     def __enter__(self):
         return self
@@ -27,14 +42,19 @@ class Reader(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.disconnect()
 
-    def connect(self, bus_addr: int, port_number: int) -> int:
+    def __repr__(self):
+        return 'Reader(bus_addr={!r}, port_number={!r})/{}/'\
+            .format(self.bus_addr, self.port_number, 'connected' if self.connected else 'disconnected')
+
+    def connect(self) -> int:
         """Производит соединение с ридером"""
         r_code = RFID_LIB.connect_reader(
             self._reader,
-            ctypes.c_ubyte(bus_addr),  # c_ubyte = unsigned char
-            ctypes.c_int(port_number),
+            ctypes.c_ubyte(self.bus_addr),  # c_ubyte = unsigned char
+            ctypes.c_int(self.port_number),
         )
         if r_code == 0:
+            self.connected = True
             return 0
         else:
             return r_code
@@ -42,11 +62,13 @@ class Reader(object):
     def disconnect(self) -> int:
         """Производит разъединение с ридером"""
         RFID_LIB.disconnect_reader(self._reader)
+        self.connected = False
+        # self._reader = None  # удаляем экзмепляр ридера
         return 0
 
     def inventory(self) -> tuple or int:
         """Возвращает идентификаторы меток"""
-        # TODO
+        # TODO какое-то некорректное создание указателя
         tag_ids = ((ctypes.c_ubyte * 255) * DEF_AMOUNT_OF_TAGS)()
         r_code = RFID_LIB.inventory(self._reader, tag_ids)
         print(tag_ids)
@@ -96,9 +118,10 @@ class Reader(object):
 
 if __name__ == '__main__':
     # Первый способ работы с ридером (с авто-дисконнектом после окончания работы)
-    with Reader() as reader:
-        reader.connect(1, 1)
+    with Reader(1, 1) as my_reader:
+        my_reader.connect()
 
     # Второй способ
-    reader.connect(1, 1)
-    reader.disconnect()
+    my_reader = Reader(1, 1)
+    my_reader.connect()
+    my_reader.disconnect()
