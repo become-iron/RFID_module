@@ -144,35 +144,39 @@ class TestReaders(unittest.TestCase):
                                  Readers.update_reader(reader_id=str(i), data=data))
 
     def test_inventory(self):
-        amount = len(Readers.get_readers()['response'])
+        readers = Readers.get_readers()['response']
+        amount = len(readers)
         for i in range(amount):
-            if Readers[str(i)]['state'] is True:
+            if readers[str(i)]['state'] is True:
                 self.assertEqual(self.success_response, Readers.inventory(reader_id=str(i)))
             else:
                 self.log(self.test_clear_tags.__name__, i)
 
     def test_read_tags(self):
-        amount = len(Readers.get_readers()['response'])
+        readers = Readers.get_readers()['response']
+        amount = len(readers)
         for i in range(amount):
-            if Readers[str(i)]['state'] is True:
+            if readers[str(i)]['state'] is True:
                 data = {'tag_ids': list(range(20))[:i]}
                 self.assertEqual(self.success_response, Readers.read_tags(reader_id=str(i), data=data))
             else:
                 self.log(self.test_clear_tags.__name__, i)
 
     def test_write_tags(self):
-        amount = len(Readers.get_readers()['response'])
+        readers = Readers.get_readers()['response']
+        amount = len(readers)
         for i in range(amount):
-            if Readers[str(i)]['state'] is True:
+            if readers[str(i)]['state'] is True:
                 data = {'tag_ids': {a: a for a in list(range(100))}}
                 self.assertEqual(self.success_response, Readers.write_tags(reader_id=str(i), data=data))
             else:
                 self.log(self.test_clear_tags.__name__, i)
 
     def test_clear_tags(self):
-        amount = len(Readers.get_readers()['response'])
+        readers = Readers.get_readers()['response']
+        amount = len(readers)
         for i in range(amount):
-            if Readers[str(i)]['state'] is True:
+            if readers[str(i)]['state'] is True:
                 data = {'tag_ids': {a: a for a in list(range(100))}}
                 self.assertEqual(self.success_response, Readers.write_tags(reader_id=str(i), data=data, clear=True))
             else:
