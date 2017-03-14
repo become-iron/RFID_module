@@ -238,6 +238,7 @@ class Application(tk.Frame):
 
         if 'error' in response:
             show_error(response)
+            self.update_reader_sets_fields()
             return
         self.update_reader_sets_fields()
         messagebox.showinfo(message='Ридер обновлён')
