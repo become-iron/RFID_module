@@ -293,6 +293,7 @@ class Application(tk.Frame):
 
         reader_id = self.sel_conn_reader.get()
         tag_id = self.sel_tag.get()
+        print(tag_id)
         if reader_id == '':
             messagebox.showerror(message='Сначала нужно выбрать ридер')
             return
@@ -302,7 +303,7 @@ class Application(tk.Frame):
 
         response = Readers.read_tags(reader_id=reader_id, data=(tag_id,))
         if 'error' in response:
-            show_error(response)
+            show_error({'error': response['error'][tag_id]})
             return
 
         self.tag_data_text.insert('0.0', response['response'])  # записываем данные

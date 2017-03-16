@@ -9,8 +9,8 @@ RFID_LIB = ctypes.CDLL(os.getcwd() + r'\RFID.dll')  # подключение б�
 RFID_LIB.new_reader.restype = ctypes.c_void_p  # WARN CHECK хранение FEDM_ISCReaderModule * в void *
 RFID_LIB.connect_reader.restype = ctypes.c_int
 RFID_LIB.inventory.restype = ctypes.c_int
-RFID_LIB.inventory.read_tag = ctypes.c_int
-RFID_LIB.inventory.write_tag = ctypes.c_int
+RFID_LIB.read_tag.restype = ctypes.c_int
+RFID_LIB.write_tag.restype = ctypes.c_int
 RFID_LIB.get_error_text.restype = ctypes.c_char_p
 
 DEF_AMOUNT_OF_TAGS = 10  #: максимальное количество меток по умолчанию
@@ -21,6 +21,7 @@ DEF_AMOUNT_OF_TAGS = 10  #: максимальное количество мет
 # экземпляр класса FEDM_ISCReaderModule создаётся при коннекте ридера и удаляется при дисконнекте
 
 # TODO: привести типы в соответствии с C++-модулем
+# TODO: cсписок ошибок ридера - в отдельный файл
 
 
 class Reader(object):
@@ -69,13 +70,18 @@ class Reader(object):
     def inventory(self) -> tuple or int:
         """Возвращает идентификаторы меток"""
         # TODO какое-то некорректное создание указателя
-        tag_ids = ((ctypes.c_ubyte * 255) * DEF_AMOUNT_OF_TAGS)()
+        #tag_ids = ((ctypes.c_ubyte * 32) * DEF_AMOUNT_OF_TAGS)()
+        #tag_ids = (ctypes.create_string_buffer(255) * DEF_AMOUNT_OF_TAGS)()
+        tag_ids = (ctypes.c_char_p * DEF_AMOUNT_OF_TAGS)()
+        tag_ids[:] = tuple(('\0' * 32).encode('utf-8') for _ in range(DEF_AMOUNT_OF_TAGS))
+
+        
         r_code = RFID_LIB.inventory(self._reader, tag_ids)
         print(tag_ids)
         print(*tag_ids)
-        print(*(tag_id.raw for tag_id in tag_ids))
+        print(*(tag_id.decode('ascii') for tag_id in tag_ids))
         if r_code == 0:
-            return tuple(tag_id.raw for tag_id in tag_ids)
+            return tuple(tag_id.decode('ascii') for tag_id in tag_ids)
         else:
             return r_code
 
@@ -86,10 +92,14 @@ class Reader(object):
             - tag_id (str): идентификатор метки
         """
         # TODO
-        tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)()
-        r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id), tags_data)
+        tag_data = ctypes.c_char_p
+        tag_data = '\0' * 256
+        
+        # tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)()
+        r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id.encode('ascii')), tag_data)
+        print(tag_data)
         if r_code == 0:
-            return tuple(tag_data.decode('utf-8') for tag_data in tags_data)
+            return tag_data.decode('utf-8')
         else:
             return r_code
 

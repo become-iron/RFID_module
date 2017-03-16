@@ -365,9 +365,9 @@ class _Readers:
         reader = self[reader_id]
 
         # TODO если в запросе по ключу "data" будет пустой массив, ничего не вернётся
-        if 'tag_ids' in data:
+        if data:
             # TODO валидация значений меток
-            tag_ids = data['tag_ids']
+            tag_ids = data
         else:
             tag_ids = reader.inventory()
             if isinstance(tag_ids, int):

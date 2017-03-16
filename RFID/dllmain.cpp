@@ -110,11 +110,19 @@ extern "C"
         unsigned char first_block = 0;
         unsigned char amount = 4;
         int r_code = 0; // код ошибок ридера
-        int idx = 0;    // идентификатор блока
-        unsigned char block_size = 0;   // размер одного блока данных в байтах
-        int data_len = 4;
+        int idx = 0;    // идентификатор блока        
+        int id_code = 0;    // идентификатор блока
+        unsigned int block_size = 0;   // размер одного блока данных в байтах
+        int data_len = 4;        
+	    unsigned int ucDataSets;
+        UCHAR ucSecStatus = 0;
+        string data_string;
         int block_len = 4;
+        unsigned int ucTagType = 0;
         
+        // определения типа метки; для ISO15693 должен быть 3
+        id_code = reader->GetTableData(0, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_TRTYPE, &ucTagType);
+            cout << "ucTagType: " << ucTagType << endl;
         
         cout << "CPP. serial_number: " << serial_number << endl;
 
@@ -125,26 +133,38 @@ extern "C"
         reader->SetData(FEDM_ISC_TMP_B0_MODE, (unsigned char)0x00);
         reader->SetData(FEDM_ISC_TMP_B0_MODE_ADR, (unsigned char)0x01);
         // выбор транспондера по идентификатору
-        reader->SetData(FEDM_ISC_TMP_B0_REQ_UID, serial_number);
+        reader->SetData(FEDM_ISC_TMP_B0_REQ_UID, serial_number, 8);
         // определение места считывания
         reader->SetData(FEDM_ISC_TMP_B0_REQ_DB_ADR, first_block);
         // определение количества данных для считывания
-        reader->SetData(FEDM_ISC_TMP_B0_REQ_DBN, amount);
-        // отправка протокола считывания блоков
-        r_code = reader->SendProtocol(0xB0);
+        reader->SetData(FEDM_ISC_TMP_B0_REQ_DBN, (UCHAR)0x01);
+
         // поиск данных о транспондере в таблице по идентификатору
-        idx = reader->FindTableIndex(0, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR, serial_number);  // TODO (nb): тут что-то не то в сигнатуре
-        
+        //idx = reader->FindTableIndex(0, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR, serial_number);  // TODO (nb): тут что-то не то в сигнатуре
+        idx = reader->GetTableData(0, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR, serial_number, 32);
         cout << "CPP. idx: " << idx << endl;
         //if(idx >= 0)
         //{
+        
+        // отправка протокола считывания блоков
+        r_code = reader->SendProtocol(0xB0);
+        
+            cout << "r_code: " << r_code << endl;
             // получение размера блока
             reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_BLOCK_SIZE, &block_size);
-            
+            reader->GetData(FEDM_ISC_TMP_B0_RSP_DBN, &ucDataSets);
             cout << "block size: " << block_size << endl;
 
             // получение самих данных
-            reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, first_block, read_data, 255);
+            //reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, first_block, read_data, 255);
+            cout << "ucDataSets: " << ucDataSets << endl;
+            for(int i=0; i<ucDataSets; i++ )
+	        {
+		        reader->GetTableData(0, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, i+first_block, data_string);	
+		        cout << "data_string: " << data_string << endl;
+		        reader->GetTableData(0, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SEC_STATUS, i, &ucSecStatus, 1);	
+		
+	        }	
 
             cout << "read data: " << read_data << endl;
             for (int i = 0; i <= 255; i++)                
