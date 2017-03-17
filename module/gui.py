@@ -238,7 +238,6 @@ class Application(tk.Frame):
 
         if 'error' in response:
             show_error(response)
-            self.update_reader_sets_fields()
             return
         self.update_reader_sets_fields()
         messagebox.showinfo(message='Ридер обновлён')
@@ -250,7 +249,7 @@ class Application(tk.Frame):
             return
 
         answer = messagebox.askyesno(message='Уверены, что хотите удалить ридер?')
-        if answer != 'yes':
+        if not answer:
             return
 
         response = Readers.delete_reader(reader_id=reader_id)
@@ -263,7 +262,7 @@ class Application(tk.Frame):
 
     def delete_all_readers(self):
         answer = messagebox.askyesno(message='Уверены, что хотите удалить все ридеры?')
-        if answer != 'yes':
+        if not answer:
             return
 
         response = Readers.delete_readers()
