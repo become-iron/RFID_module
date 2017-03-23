@@ -112,12 +112,12 @@ extern "C"
         unsigned char amount = 4;
         int r_code = 0; // код ошибок ридера
         int idx = 0;    // идентификатор блока        
-        int item = 0;    // идентификатор блока  ПОПРОБОВАТЬ РАЗНЫЕ ЗНАЧЕНИЯ
+        int item = 1;    // идентификатор блока  ПОПРОБОВАТЬ РАЗНЫЕ ЗНАЧЕНИЯ
         unsigned int block_size = 0;   // размер одного блока данных в байтах
         int data_len = 4;        
 	    unsigned int ucDataSets;
         UCHAR ucSecStatus = 0;
-        UCHAR ucSnrLen = 0;
+        UINT ucSnrLen = 0;
         string data_string;
         int block_len = 4;
         unsigned int ucTagType = 0;
@@ -141,7 +141,7 @@ extern "C"
         cout << "CPP. idx: " << idx << endl;
 
         idx = reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR_LEN, &ucSnrLen);
-        cout << "CPP. ucSnrLen: " << serial_number << endl;
+        cout << "CPP. ucSnrLen: " << ucSnrLen << endl;
         cout << "CPP. idx: " << idx << endl;
 
 
@@ -161,9 +161,9 @@ extern "C"
         // определение места считывания
         // ВЫБРАТЬ ПРАВИЛЬНЫЙ ВАРИАНТ
         // 1
-        reader->SetData(FEDM_ISC_TMP_B0_REQ_DB_ADR, first_block);
+        //reader->SetData(FEDM_ISC_TMP_B0_REQ_DB_ADR, first_block);
         // 2
-        //reader->SetData(FEDM_ISC_TMP_B0_REQ_DB_ADR, (UCHAR)first_block);
+        reader->SetData(FEDM_ISC_TMP_B0_REQ_DB_ADR, (UCHAR)first_block);
 
         // определение количества данных для считывания
         reader->SetData(FEDM_ISC_TMP_B0_REQ_DBN, amount);
@@ -190,38 +190,39 @@ extern "C"
             //reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, first_block, read_data, 256);
 
             // ПОПРОБОВАТЬ БЕЗ ЦИКЛА
-            for(int i=0; i<ucDataSets; i++ )
-	        {
+            //for(int i=0; i<ucDataSets; i++ )
+	        //{
+                int i = 0;
                 //ВЫБРАТЬ ПРАВИЛЬНЫЙ ВАРИАНТ
                 // 1                
-                reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, i+first_block, ucReadBlock, block_size);
+                reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, i + first_block, ucReadBlock, block_size);
                 cout << "ucReadBlock: " << ucReadBlock << endl;
-                for (int j = 0; j <= 255; j++)                
+                for (int j = 0; ucReadBlock[j] != '\0'; j++)                
                     cout << ucReadBlock[j];                
                 cout << endl;
 		        
                 // 2
-                reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, i+(UCHAR)first_block, ucReadBlock, block_size);	
-                //cout << "ucReadBlock: " << ucReadBlock << endl;
-                //for (int j = 0; j <= 255; j++)              
-                //    cout << ucReadBlock[j];                
-                //cout << endl;
+                reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, i + (UCHAR)first_block, ucReadBlock, block_size);	
+                cout << "ucReadBlock: " << ucReadBlock << endl;
+                for (int j = 0; ucReadBlock[j] != '\0'; j++)              
+                    cout << ucReadBlock[j];                
+                cout << endl;
 
                 // 3
                 reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, i+(UCHAR)first_block, read_data, block_size);	
-                //cout << "read_data: " << read_data << endl;
-                //for (int j = 0; j <= 255; j++)             
-                //    cout << read_data[j];                
-                //cout << endl;
+                cout << "read_data: " << read_data << endl;
+                for (int j = 0; read_data[j] != '\0'; j++)             
+                    cout << read_data[j];                
+                cout << endl;
 		        
                 // 4
-                //reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, i+first_block, data_string);	
-                //cout << "data_string: " << data_string << endl;
+                reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, i+first_block, data_string);	
+                cout << "data_string: " << data_string << endl;
 
 
 		        reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SEC_STATUS, i, &ucSecStatus, 1);	
 		
-	        }	
+	        //}	
 
         //}
 
@@ -239,26 +240,33 @@ extern "C"
      __declspec(dllexport) int write_tag(FEDM_ISCReaderModule * reader, char * serial_number,  unsigned char * write_data)    
     {
         unsigned char first_block = 0;
+        int ireturn = 0;
         int r_code = 0; // код ошибок ридера
         int idx = 0;    // идентификатор блока
+        int item = 1;    // идентификатор блока  ПОПРОБОВАТЬ РАЗНЫЕ ЗНАЧЕНИЯ
         unsigned char block_size = 0;   // размер одного блока данных в байтах
-        unsigned char data[16]; // буфер для 4 блоков данных по 4 байта
+        unsigned char data[256]; // буфер для 4 блоков данных по 4 байта
         int data_len = 4;
         int block_len = 4;
 
         // поиск данных о транспондере в таблице по идентификатору
-        idx = reader->FindTableIndex(0, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR, serial_number);  // TODO (nb): тут что-то не то в сигнатуре
-
-        if(idx >= 0)
-        {
+        //idx = reader->FindTableIndex(0, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR, serial_number);
+        idx = reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SNR, serial_number, 32);
+        cout << "idx: " << idx << endl;
+        //if(idx >= 0)
+        //{
             // получение размера блока
             reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_BLOCK_SIZE, &block_size);
             
             // проверить, какой вариант получения данных рабочий
             // 1
             // получение данных из таблицы
+            cout << "ireturn: " << endl;
             for(int i=0; i<data_len; i++)
-                reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, first_block, &data[i*block_size], block_len);
+            {
+                ireturn = reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, first_block, &data[i*block_size], block_len);
+                cout << ireturn << endl;
+            }
 
             // 2
             //reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, first_block, data, block_len);
@@ -271,7 +279,7 @@ extern "C"
 
             // печать передаваемых данных
             cout << "write_data: " << endl;
-            for (int i = 0; i <= 255; i++)                
+            for (int i = 0; write_data[i] != '\0'; i++)                
                 cout << write_data[i];                
             cout << endl;
                 
@@ -279,16 +287,22 @@ extern "C"
             // проверить, какой вариант записи рабочий
             // 1
             // сборка данных для протокола отправки
+            cout << "ireturn: " << endl;
             for(int i=0; i<data_len; i++)
-                reader->SetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_TxDB, first_block, &write_data[i*block_size], block_size);
-            
+            {
+                ireturn = reader->SetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_TxDB, first_block, &write_data[i*block_size], block_size);
+                cout << ireturn << endl;
+            }
+
             // 2
             //reader->SetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_TxDB, first_block, write_data, block_size);
                 
             // отправка протокола записи блоков
             reader->SetData(FEDM_ISC_TMP_B0_CMD, (unsigned char)0x24);
             r_code = reader->SendProtocol(0xB0);
-        }
+
+            cout << r_code << endl;
+        //}
 
         return r_code;
     }

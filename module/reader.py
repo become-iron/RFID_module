@@ -21,7 +21,7 @@ DEF_AMOUNT_OF_TAGS = 10  #: максимальное количество мет
 # экземпляр класса FEDM_ISCReaderModule создаётся при коннекте ридера и удаляется при дисконнекте
 
 # TODO: привести типы в соответствии с C++-модулем
-# TODO: cсписок ошибок ридера - в отдельный файл
+# TODO: cписок ошибок ридера - в отдельный файл
 
 
 class Reader(object):
@@ -41,6 +41,9 @@ class Reader(object):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self.disconnect()
+
+    def __del__(self):
         self.disconnect()
 
     def __repr__(self):
@@ -70,12 +73,12 @@ class Reader(object):
     def inventory(self) -> tuple or int:
         """Возвращает идентификаторы меток"""
         # TODO какое-то некорректное создание указателя
-        #tag_ids = ((ctypes.c_ubyte * 32) * DEF_AMOUNT_OF_TAGS)()
-        #tag_ids = (ctypes.create_string_buffer(255) * DEF_AMOUNT_OF_TAGS)()
+        # tag_ids = ((ctypes.c_ubyte * 32) * DEF_AMOUNT_OF_TAGS)()
+        # tag_ids = (ctypes.create_string_buffer(255) * DEF_AMOUNT_OF_TAGS)()
         tag_ids = (ctypes.c_char_p * DEF_AMOUNT_OF_TAGS)()
         tag_ids[:] = tuple(('\0' * 32).encode('utf-8') for _ in range(DEF_AMOUNT_OF_TAGS))
+        # tag_ids[:] = tuple(ctypes.create_string_buffer(32) for _ in range(DEF_AMOUNT_OF_TAGS))  # TODO попробовать
 
-        
         r_code = RFID_LIB.inventory(self._reader, tag_ids)
         print(tag_ids)
         print(*tag_ids)
@@ -92,14 +95,16 @@ class Reader(object):
             - tag_id (str): идентификатор метки
         """
         # TODO
+        tag_id = tag_id.encode('ascii')
         tag_data = ctypes.c_char_p
-        tag_data = '\0' * 256
+        tag_data = ('\0' * 256).encode('cp866')
+        # tag_data = ctypes.create_string_buffer(256)  # TODO
         
         # tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)()
-        r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id.encode('ascii')), tag_data)
+        r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id), tag_data)
         print(tag_data)
         if r_code == 0:
-            return tag_data.decode('utf-8')
+            return tag_data.decode('cp866')
         else:
             return r_code
 
@@ -111,12 +116,17 @@ class Reader(object):
             - data (list or tuple): содержит в себе данные для меток (str)
         """
         # TODO
-        tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)(*data[DEF_AMOUNT_OF_TAGS])
-        r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id), tags_data)
-        if r_code == 0:
-            return 0
-        else:
-            return r_code
+        # tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)(*data[DEF_AMOUNT_OF_TAGS])
+
+        tag_id = tag_id.encode('ascii')
+        tag_data = ctypes.c_char_p
+        tag_data = data.encode('cp866')
+        r_code = RFID_LIB.write_tag(self._reader, ctypes.c_char_p(tag_id), tag_data)
+        return r_code
+        #if r_code == 0:
+        #    return 0
+        #else:
+        #    return r_code
 
     def get_error_text(self, code: int) -> str:
         """Возвращает текст ошибки по соответствующему коду"""

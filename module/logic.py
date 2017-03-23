@@ -425,10 +425,17 @@ class _Readers:
             else:
                 result.update({tag_id: r_code})
 
-        result = None if len(result) == 0 else result
-        errors = None if len(errors) == 0 else errors
+        #result = None if len(result) == 0 else result
+        #errors = None if len(errors) == 0 else errors
 
-        return dict(response=result, error=errors)
+        # TODO: научить Сашу английскому (бедный словарный запас)
+        answer = {}
+        if result:
+            answer.update(dict(response=result))
+        if errors:
+            answer.update(dict(error=errors))
+
+        return answer
 
 
 Readers = _Readers()  # WARN: объект в глобальной области видимости, через который следует работать с ридерами
