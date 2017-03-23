@@ -77,8 +77,9 @@ class Application(tk.Frame):
         self.port_number_enrty = ttk.Entry(self.readers_sets_frame, textvariable=self.port_number)
         self.port_number_enrty.grid(row=2, column=1, **def_sets)
 
-        self.delete_reader_btn = ttk.Button(self.readers_sets_frame, text='Удалить ридер', command=self.delete_reader)
-        self.delete_reader_btn.grid(row=2, column=2, **def_sets)
+        self.change_state_btn = ttk.Button(self.readers_sets_frame, text='Подключить ридер',
+                                           command=self.change_reader_state)
+        self.change_state_btn.grid(row=2, column=2, **def_sets)
 
         # IV строка
         self.reader_state_lbl = ttk.Label(self.readers_sets_frame, text='Подключен ли\nридер')
@@ -88,9 +89,8 @@ class Application(tk.Frame):
                                             values=('Подключен', 'Отключен'), textvariable=self.reader_state)
         self.reader_state_cb.grid(row=3, column=1, **def_sets)
 
-        self.delete_all_readers_btn = ttk.Button(self.readers_sets_frame,
-                                                 text='Удалить\nвсе ридеры', command=self.delete_all_readers)
-        self.delete_all_readers_btn.grid(row=3, column=2, **def_sets)
+        self.delete_reader_btn = ttk.Button(self.readers_sets_frame, text='Удалить ридер', command=self.delete_reader)
+        self.delete_reader_btn.grid(row=3, column=2, **def_sets)
 
         # V строка
         self.readers_list_lbl = ttk.Label(self.readers_sets_frame, text='Доступные\nридеры')
@@ -106,9 +106,14 @@ class Application(tk.Frame):
             self.bus_addr.set(reader['bus_addr'])
             self.port_number.set(reader['port_number'])
             self.reader_state.set('Подключен' if reader['state'] else 'Отключен')  # TODO
+            self.change_state_btn['text'] = 'Отключить ридер' if reader['state'] else 'Подключить ридер'
         self.readers_list_cb = ttk.Combobox(self.readers_sets_frame, state=('readonly',), textvariable=self.sel_reader)
-        self.readers_list_cb.grid(row=4, column=1, columnspan=2, **def_sets)
+        self.readers_list_cb.grid(row=4, column=1, **def_sets)
         self.readers_list_cb.bind('<<ComboboxSelected>>', update_fields)
+
+        self.delete_all_readers_btn = ttk.Button(self.readers_sets_frame,
+                                                 text='Удалить\nвсе ридеры', command=self.delete_all_readers)
+        self.delete_all_readers_btn.grid(row=4, column=2, **def_sets)
 
         # ФРЕЙМ ДЛЯ РАБОТЫ С МЕТКАМИ
         # I строка
@@ -242,6 +247,31 @@ class Application(tk.Frame):
         self.update_reader_sets_fields()
         messagebox.showinfo(message='Ридер обновлён')
 
+    def change_reader_state(self):
+        sel_reader = self.sel_reader.get()
+
+        if not sel_reader:
+            messagebox.showerror(message='Сначала нужно выбрать ридер')
+            return
+
+        reader_state = self.reader_state.get()
+
+        reader_state = True if reader_state == 'Подключен' else False  # TODO
+
+        new_reader_state = not reader_state
+
+        response = Readers.update_reader(
+            reader_id=sel_reader,
+            data={'state': new_reader_state}
+        )
+
+        if 'error' in response:
+            show_error(response)
+            return
+        self.update_reader_sets_fields()
+        message = 'Ридер подключен' if new_reader_state else 'Ридер отключен'
+        messagebox.showinfo(message=message)
+
     def delete_reader(self):
         reader_id = self.sel_reader.get()
         if reader_id == '':
@@ -321,11 +351,12 @@ class Application(tk.Frame):
         tag_data = self.tag_data_text.get('0.0', tk.END).replace('\n', '')
 
         response = Readers.write_tags(reader_id=reader_id, data={tag_id: tag_data})
+        print(response)
         if 'error' in response:
-            show_error(response)
+            show_error({'error': response['error'][tag_id]})
             return
 
-        messagebox.showinfo('Информация записана на метку')
+        messagebox.showinfo(message='Информация записана на метку')
 
     def clear_tag(self):
         reader_id = self.sel_conn_reader.get()
