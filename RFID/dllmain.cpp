@@ -107,6 +107,7 @@ extern "C"
       // TODO (nb): для serial_number, наверное, просто char const *
      __declspec(dllexport) int read_tag(FEDM_ISCReaderModule * reader, char * serial_number, unsigned char * read_data)
     {
+        /*
         // ПОПРОБОВАТЬ ПАРУ ДРУГИХ ВАРИАНТОВ
         UINT first_block = 5;
         unsigned char amount = 4;
@@ -169,8 +170,8 @@ extern "C"
         reader->SetData(FEDM_ISC_TMP_B0_REQ_DBN, amount);
         
 
-        //if(idx >= 0)
-        //{
+        if(idx >= 0)
+        {
         
 
         // отправка протокола считывания блоков
@@ -190,9 +191,8 @@ extern "C"
             //reader->GetTableData(idx, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, first_block, read_data, 256);
 
             // ПОПРОБОВАТЬ БЕЗ ЦИКЛА
-            //for(int i=0; i<ucDataSets; i++ )
-	        //{
-                int i = 0;
+            for(int i=0; i<ucDataSets; i++ )
+	        {
                 //ВЫБРАТЬ ПРАВИЛЬНЫЙ ВАРИАНТ
                 // 1                
                 reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_RxDB, i + first_block, ucReadBlock, block_size);
@@ -222,9 +222,82 @@ extern "C"
 
 		        reader->GetTableData(item, FEDM_ISC_ISO_TABLE, FEDM_ISC_DATA_SEC_STATUS, i, &ucSecStatus, 1);	
 		
-	        //}	
+	        }	
 
-        //}
+        }
+        */
+
+        int r_code = 0; // код ошибок ридера
+        int back = 0;
+        int deviceID = 0; // серийный номер ридера; можно подать 0, тогда компонент подключится к первому обнаруженному ридеру
+        int address = 0; // номер блока, с которого начинаем запись
+        int BlockCnt = 55; // число блоков для записи
+        unsigned int bsize = 4; // размер блока, отдается при чтении
+        unsigned char newData[16]; // данные для записи
+
+        FedmIscTagHandler* tagHandler = NULL;   // метка
+        FEDM_ISC_TAG_LIST* tagList = NULL;      // список меток
+        FEDM_ISC_TAG_LIST_ITOR itor;            // итератор меток
+
+        reader->ConnectUSB(deviceID);
+
+        if (reader->IsConnected())
+        {
+            //первым действием обязательно следует вызов ReadReaderInfo
+            reader->ReadReaderInfo();
+
+            //зачитываем полную конфигурацию
+            back = reader->ReadCompleteConfiguration(true);
+            cout << "back1: " << back << endl;
+
+            // переключаем ридер в HostMode (0)
+            // поскольку компонент подразумевает работу только в HostMode
+            back = reader->SetConfigPara(ReaderConfig::OperatingMode::Mode, 0, true);
+            cout << "back2: " << back << endl;
+
+            back = reader->ApplyConfiguration(true);
+            cout << "back3: " << back << endl;
+
+            //перед работой с тегами необходимо задать размер таблицы
+            back = reader->SetTableSize(FEDM_ISC_ISO_TABLE, 100);
+            cout << "back4: " << back << endl;
+
+            tagList = reader->TagInventory();
+            cout << "tagList: " << tagList << endl;
+
+            for(itor = tagList->begin(); itor != tagList->end(); itor++)
+            {
+                // проверяем валидность тега
+                tagHandler = itor->second;
+                cout << "tagHandler: " << tagHandler << endl;
+                if (tagHandler != NULL)
+                {
+                    if(dynamic_cast<FedmIscTagHandler_ISO15693*>(tagHandler) != NULL)
+                    {
+                        // задаем временную переменную для работы с меткой
+                        FedmIscTagHandler_ISO15693* hf_tag = (FedmIscTagHandler_ISO15693*)tagHandler;
+                        cout << "hf_tag: " << hf_tag << endl;
+
+                        string uid = hf_tag->GetUID();
+                        cout << "uid: " << uid << endl;
+
+                        byte data[256];
+
+                        //чтение
+                        r_code = hf_tag->ReadMultipleBlocks(address, BlockCnt, bsize, data);
+                        cout << "r_code: " << r_code << endl;
+
+                        //запись
+                        //r_code = hf_tag->WriteMultipleBlocks(address, BlockCnt, bsize, newData);
+
+                        cout << "data: " << data << endl;
+                        for (int j = 0; j < 256; j++)             
+                            cout << data[j];                
+                        cout << endl;
+                    }
+                }
+            }
+        }
 
         return r_code;
     }
@@ -239,6 +312,7 @@ extern "C"
     */
      __declspec(dllexport) int write_tag(FEDM_ISCReaderModule * reader, char * serial_number,  unsigned char * write_data)    
     {
+        /*
         unsigned char first_block = 0;
         int ireturn = 0;
         int r_code = 0; // код ошибок ридера
@@ -303,6 +377,73 @@ extern "C"
 
             cout << r_code << endl;
         //}
+
+        return r_code;
+        */
+
+        int r_code = 0; // код ошибок ридера
+        int back = 0;
+        int deviceID = 0; // серийный номер ридера; можно подать 0, тогда компонент подключится к первому обнаруженному ридеру
+        int address = 0; // номер блока, с которого начинаем запись
+        int BlockCnt = 55; // число блоков для записи
+        unsigned int bsize = 4; // размер блока, отдается при чтении
+
+        FedmIscTagHandler* tagHandler = NULL;   // метка
+        FEDM_ISC_TAG_LIST* tagList = NULL;      // список меток
+        FEDM_ISC_TAG_LIST_ITOR itor;            // итератор меток
+
+        reader->ConnectUSB(deviceID);
+
+        if (reader->IsConnected())
+        {
+            //первым действием обязательно следует вызов ReadReaderInfo
+            reader->ReadReaderInfo();
+
+            //зачитываем полную конфигурацию
+            back = reader->ReadCompleteConfiguration(true);
+            cout << "back1: " << back << endl;
+
+            // переключаем ридер в HostMode (0)
+            // поскольку компонент подразумевает работу только в HostMode
+            back = reader->SetConfigPara(ReaderConfig::OperatingMode::Mode, 0, true);
+            cout << "back2: " << back << endl;
+
+            back = reader->ApplyConfiguration(true);
+            cout << "back3: " << back << endl;
+
+            //перед работой с тегами необходимо задать размер таблицы
+            back = reader->SetTableSize(FEDM_ISC_ISO_TABLE, 100);
+            cout << "back4: " << back << endl;
+
+            tagList = reader->TagInventory();
+            cout << "tagList: " << tagList << endl;
+
+            for(itor = tagList->begin(); itor != tagList->end(); itor++)
+            {
+                // проверяем валидность тега
+                tagHandler = itor->second;
+                cout << "tagHandler: " << tagHandler << endl;
+                if (tagHandler != NULL)
+                {
+                    if(dynamic_cast<FedmIscTagHandler_ISO15693*>(tagHandler) != NULL)
+                    {
+                        // задаем временную переменную для работы с меткой
+                        FedmIscTagHandler_ISO15693* hf_tag = (FedmIscTagHandler_ISO15693*)tagHandler;
+                        cout << "hf_tag: " << hf_tag << endl;
+
+                        string uid = hf_tag->GetUID();
+                        cout << "uid: " << uid << endl;
+
+                        //чтение
+                        //r_code = hf_tag->ReadMultipleBlocks(address, BlockCnt, bsize, data);
+                        
+                        //запись
+                        r_code = hf_tag->WriteMultipleBlocks(address, BlockCnt, bsize, write_data);
+                        cout << "r_code: " << r_code << endl;
+                    }
+                }
+            }
+        }
 
         return r_code;
     }
