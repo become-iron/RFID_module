@@ -105,7 +105,7 @@ extern "C"
         amount - количество блоков, которые нужно считать
     */
       // TODO (nb): для serial_number, наверное, просто char const *
-     __declspec(dllexport) int read_tag(FEDM_ISCReaderModule * reader, char * serial_number, unsigned char * read_data)
+     __declspec(dllexport) int read_tag(FEDM_ISCReaderModule * reader, char const * serial_number, unsigned char * read_data)
     {
         /*
         // ПОПРОБОВАТЬ ПАРУ ДРУГИХ ВАРИАНТОВ
@@ -278,22 +278,27 @@ extern "C"
                         FedmIscTagHandler_ISO15693* hf_tag = (FedmIscTagHandler_ISO15693*)tagHandler;
                         cout << "hf_tag: " << hf_tag << endl;
 
-                        string uid = hf_tag->GetUID();
+                        char const * uid = hf_tag->GetUID();
                         cout << "uid: " << uid << endl;
 
-                        byte data[256];
+                        // сравниваем ид необходимой метки с перебираемой в цикле
+                        int cmp = strcmp(uid, serial_number);
+                        if (cmp != 0)
+                        {
+                            continue;
+                        }
+
+                        //byte data[256];
 
                         //чтение
-                        r_code = hf_tag->ReadMultipleBlocks(address, BlockCnt, bsize, data);
+                        r_code = hf_tag->ReadMultipleBlocks(address, BlockCnt, bsize, read_data);
                         cout << "r_code: " << r_code << endl;
 
-                        //запись
-                        //r_code = hf_tag->WriteMultipleBlocks(address, BlockCnt, bsize, newData);
-
-                        cout << "data: " << data << endl;
-                        for (int j = 0; j < 256; j++)             
-                            cout << data[j];                
-                        cout << endl;
+                        cout << "read_data: " << read_data << endl;
+                        printf("%u", read_data);
+                        //for (int j = 0; j < 256; j++)             
+                        //    cout << read_data[j];                
+                        //cout << endl;
                     }
                 }
             }
@@ -310,7 +315,7 @@ extern "C"
         write_data - массив данных, которые будут записаны
         first_block - блок, с которого начинается считывание
     */
-     __declspec(dllexport) int write_tag(FEDM_ISCReaderModule * reader, char * serial_number,  unsigned char * write_data)    
+     __declspec(dllexport) int write_tag(FEDM_ISCReaderModule * reader, char const * serial_number,  unsigned char * write_data)    
     {
         /*
         unsigned char first_block = 0;
@@ -431,11 +436,15 @@ extern "C"
                         FedmIscTagHandler_ISO15693* hf_tag = (FedmIscTagHandler_ISO15693*)tagHandler;
                         cout << "hf_tag: " << hf_tag << endl;
 
-                        string uid = hf_tag->GetUID();
+                        char const * uid = hf_tag->GetUID();
                         cout << "uid: " << uid << endl;
 
-                        //чтение
-                        //r_code = hf_tag->ReadMultipleBlocks(address, BlockCnt, bsize, data);
+                        // сравниваем ид необходимой метки с перебираемой в цикле
+                        int cmp = strcmp(uid, serial_number);
+                        if (cmp != 0)
+                        {
+                            continue;
+                        }
                         
                         //запись
                         r_code = hf_tag->WriteMultipleBlocks(address, BlockCnt, bsize, write_data);

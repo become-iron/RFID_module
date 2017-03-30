@@ -332,10 +332,11 @@ class Application(tk.Frame):
 
         response = Readers.read_tags(reader_id=reader_id, data=(tag_id,))
         if 'error' in response:
+            print(response)
             show_error({'error': response['error'][tag_id]})
             return
 
-        self.tag_data_text.insert('0.0', response['response'])  # записываем данные
+        self.tag_data_text.insert('0.0', response['response'][tag_id])  # записываем данные
         messagebox.showinfo(message='Информация с метки считана')
 
     def write_tag(self):
@@ -368,13 +369,13 @@ class Application(tk.Frame):
             messagebox.showerror(message='Сначала нужно выбрать метку')
             return
 
-        response = Readers.clear_tags(reader_id=reader_id, data=(tag_id,))
+        response = Readers.write_tags(reader_id=reader_id, data={tag_id: 0}, clear=True)
         if 'error' in response:
             show_error(response)
             return
 
         self.tag_data_text.delete('0.0', tk.END)  # очищаем поле данных с метки
-        messagebox.showinfo('Информация удалена с метки')
+        messagebox.showinfo(message='Информация удалена с метки')
 
 
 root = tk.Tk()

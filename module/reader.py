@@ -88,7 +88,7 @@ class Reader(object):
         else:
             return r_code
 
-    def read_tag(self, tag_id: str) -> tuple or int:
+    def read_tag(self, tag_id: str) -> str:
         """
         Возвращает данные с метки
         Принимает:
@@ -96,19 +96,19 @@ class Reader(object):
         """
         # TODO
         tag_id = tag_id.encode('ascii')
-        tag_data = ctypes.c_char_p
-        tag_data = ('\0' * 256).encode('cp866')
+        #tag_data = ctypes.c_char_p
+        tag_data = ('\0' * 224).encode('cp866')
         # tag_data = ctypes.create_string_buffer(256)  # TODO
         
         # tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)()
-        r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id), tag_data)
-        print(tag_data)
+        r_code = RFID_LIB.read_tag(self._reader, ctypes.c_char_p(tag_id), ctypes.c_char_p(tag_data))
+        #print(tag_data)
         if r_code == 0:
             return tag_data.decode('cp866')
         else:
             return r_code
 
-    def write_tag(self, tag_id: str, data: list or tuple) -> int:
+    def write_tag(self, tag_id: str, data: str) -> int:
         """
         Записывает данные в метку
         Принимает:
@@ -117,11 +117,12 @@ class Reader(object):
         """
         # TODO
         # tags_data = ((ctypes.c_char * 255) * DEF_AMOUNT_OF_TAGS)(*data[DEF_AMOUNT_OF_TAGS])
-
+    
         tag_id = tag_id.encode('ascii')
-        tag_data = ctypes.c_char_p
-        tag_data = data.encode('cp866')
-        r_code = RFID_LIB.write_tag(self._reader, ctypes.c_char_p(tag_id), tag_data)
+        #tag_data = ctypes.c_char_p
+        data = data[:224].ljust(224, '\0')
+        data = data.encode('cp866')
+        r_code = RFID_LIB.write_tag(self._reader, ctypes.c_char_p(tag_id), ctypes.c_char_p(data))
         return r_code
         #if r_code == 0:
         #    return 0

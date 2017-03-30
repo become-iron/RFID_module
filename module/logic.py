@@ -384,10 +384,14 @@ class _Readers:
             else:
                 result.update({tag_id: response})
 
-        result = None if len(result) == 0 else result
-        errors = None if len(errors) == 0 else errors
+        result_ = {}
 
-        return dict(response=result, error=errors)
+        if result:
+            result_.update(dict(response=result))
+        if errors:
+            result_.update(dict(error=errors))
+
+        return result_
 
     @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsDisconnected)
     def write_tags(self, reader_id: str, data: dict, clear=False):
