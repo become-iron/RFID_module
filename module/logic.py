@@ -364,7 +364,7 @@ class _Readers:
         # TEMP нужно будет определиться с форматом данных на метках
         reader = self[reader_id]
 
-        # TODO если в запросе по ключу "data" будет пустой массив, ничего не вернётся
+        # WARN если в запросе по ключу "data" будет пустой массив, ничего не вернётся
         if data:
             # TODO валидация значений меток
             tag_ids = data
@@ -375,23 +375,23 @@ class _Readers:
                 error.log_error('read_tags', reader_id=reader_id, data=data)
                 return dict(error=error.to_dict())
 
-        result = {}
+        responses = {}
         errors = {}
         for tag_id in tag_ids:
             response = reader.read_tag(tag_id)
             if isinstance(response, int):
                 errors.update({tag_id: {'error_code': response, 'error_msg': reader.get_error_text(response)}})
             else:
-                result.update({tag_id: response})
+                responses.update({tag_id: response})
 
-        result_ = {}
+        result = {}
 
-        if result:
-            result_.update(dict(response=result))
+        if responses:
+            result.update(dict(response=responses))
         if errors:
-            result_.update(dict(error=errors))
+            result.update(dict(error=errors))
 
-        return result_
+        return result
 
     @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsDisconnected)
     def write_tags(self, reader_id: str, data: dict, clear=False):
@@ -408,17 +408,23 @@ class _Readers:
                 '2': 'sdf',
                 ...
             }
+            или для очистки
+            [
+                '1',
+                '2',
+                ...
+            ]
         """
         # TEMP нужно будет определиться с форматом данных на метках
         reader = self[reader_id]
 
         # TODO валидация значений меток
 
-        result = {}
+        responses = {}
         errors = {}
         for tag_id in data:
             if clear:
-                tag_data = ''  # TEMP TODO какие-то данные для очистки меток
+                tag_data = ''  # пустая строка для записи в метку
             else:
                 tag_data = data[tag_id]
             r_code = reader.write_tag(tag_id, tag_data)  # TEMP
@@ -427,34 +433,15 @@ class _Readers:
                 error.log_error('write_tags', reader_id=reader_id, tag_id=tag_id, tag_data=tag_data)
                 errors.update({tag_id: {'error_code': r_code, 'error_msg': reader.get_error_text(r_code)}})
             else:
-                result.update({tag_id: r_code})
+                responses.update({tag_id: r_code})
 
-        #result = None if len(result) == 0 else result
-        #errors = None if len(errors) == 0 else errors
-
-        # TODO: научить Сашу английскому (бедный словарный запас)
-        answer = {}
-        if result:
-            answer.update(dict(response=result))
+        result = {}
+        if responses:
+            result.update(dict(response=responses))
         if errors:
-            answer.update(dict(error=errors))
+            result.update(dict(error=errors))
 
-        return answer
+        return result
 
 
 Readers = _Readers()  # WARN: объект в глобальной области видимости, через который следует работать с ридерами
-
-if __name__ == '__main__':
-    from pprint import pprint
-    pprint(Readers.get_readers())
-    Readers.add_reader(data=dict(reader_id="1", bus_addr=1, port_number=1))
-    Readers.add_reader(data=dict(reader_id="2", bus_addr=1, port_number=1))
-    pprint(Readers.add_reader(data=dict(reader_id='3', bus_addr=1, port_number=1)))
-    pprint(Readers.add_reader(data=dict(reader_id='4', bus_addr=3, port_number=3)))
-    pprint(Readers.update_reader(reader_id="3", data={"bus_addr": 50}))
-    pprint(Readers.get_readers())
-    # pprint(Readers.delete_readers())
-    # pprint(Readers.delete_readers())
-    # print(len(Readers))
-    # pprint(Errors.__dict__)
-    # print(Errors.InvalidReaderBusAddr('meow'))

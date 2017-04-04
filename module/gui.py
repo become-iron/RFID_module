@@ -12,8 +12,6 @@ def show_error(response):
         .format(response['error']['error_code'], response['error']['error_msg'])
     messagebox.showerror(message=msg)
 
-# TODO при выходе из программы, отключать ридеры
-
 
 # noinspection PyAttributeOutsideInit
 class Application(tk.Frame):
@@ -352,7 +350,6 @@ class Application(tk.Frame):
         tag_data = self.tag_data_text.get('0.0', tk.END).replace('\n', '')
 
         response = Readers.write_tags(reader_id=reader_id, data={tag_id: tag_data})
-        print(response)
         if 'error' in response:
             show_error({'error': response['error'][tag_id]})
             return
@@ -362,16 +359,16 @@ class Application(tk.Frame):
     def clear_tag(self):
         reader_id = self.sel_conn_reader.get()
         tag_id = self.sel_tag.get()
-        if reader_id == '':
+        if not reader_id:
             messagebox.showerror(message='Сначала нужно выбрать ридер')
             return
-        if tag_id == '':
+        if not tag_id:
             messagebox.showerror(message='Сначала нужно выбрать метку')
             return
 
         response = Readers.write_tags(reader_id=reader_id, data={tag_id: 0}, clear=True)
         if 'error' in response:
-            show_error(response)
+            show_error({'error': response['error'][tag_id]})
             return
 
         self.tag_data_text.delete('0.0', tk.END)  # очищаем поле данных с метки
