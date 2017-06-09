@@ -6,7 +6,7 @@ __all__ = ('Reader',)
 
 RFID_LIB = ctypes.CDLL(os.getcwd() + r'\RFID.dll')  # подключение библиотеки для работы с RFID-ридером
 # определение возвращаемых функциями типов данных
-RFID_LIB.new_reader.restype = ctypes.c_void_p  # WARN CHECK хранение FEDM_ISCReaderModule* в void*
+RFID_LIB.new_reader.restype = ctypes.c_void_p  # WARN: хранение FEDM_ISCReaderModule* в void*
 RFID_LIB.connect_reader.restype = ctypes.c_int
 RFID_LIB.inventory.restype = ctypes.c_int
 RFID_LIB.read_tag.restype = ctypes.c_int
@@ -21,7 +21,6 @@ TAG_SIZE = 224  # объём доступной памяти для записи
 # Принципы работы:
 # экземпляр класса FEDM_ISCReaderModule создаётся при коннекте ридера и удаляется при дисконнекте
 
-# TODO: привести типы в соответствии с C++-модулем
 # TODO: cписок ошибок ридера - в отдельный файл
 
 
@@ -37,12 +36,6 @@ class Reader(object):
     # def connected(self):
     #     """Подключен ли ридер"""
     #     return self._reader is not None
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.disconnect()
 
     def __del__(self):
         self.disconnect()
@@ -123,17 +116,15 @@ class Reader(object):
     def get_error_text(self, code: int) -> str:
         """Возвращает текст ошибки по соответствующему коду"""
         text = RFID_LIB.get_error_text(self._reader, ctypes.c_int(code)).decode('ascii')
-        if len(text) == 0:
+        if len(text) == 0 or \
+           'unknown error code' in text or \
+           'Unknown Errorcode' in text or \
+           'Unknown error code' in text or \
+           'Unknown Program Error' in text:
             text = 'Невалидный код ошибки: {0}'.format(code)
         return text
 
 
 if __name__ == '__main__':
-    # Первый способ работы с ридером (с авто-дисконнектом после окончания работы)
-    with Reader(1, 1) as my_reader:
-        my_reader.connect()
-
-    # Второй способ
     my_reader = Reader(1, 1)
     my_reader.connect()
-    my_reader.disconnect()
