@@ -352,10 +352,10 @@ class _Readers:
         return dict(response=response)
 
     @check_for_errors(Errors.ReaderNotExists, Errors.ReaderIsDisconnected)
-    def read_tags(self, reader_id: str, data: dict):
+    def read_tags(self, reader_id: str, data: list):
         """
         Возвращает информацию с меток
-        Если в параметре data отсутствует поле data, произойдёт
+        Если в параметре data отсутствуют элементы, произойдёт
         считывание с меток, находящихся в зоне действия антенны
 
         Требуемый формат параметра data:
