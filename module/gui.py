@@ -5,6 +5,8 @@ from tkinter import messagebox
 
 from logic import Readers
 
+reader_state_titles = ('Отключен', 'Подключен')
+
 
 def show_error(response):
     error_pattern = 'Произошла ошибка:\nКод: {0}\nОписание: {1}'
@@ -29,7 +31,7 @@ class Application(tk.Frame):
         self.reader_id = tk.StringVar()
         self.bus_addr = tk.StringVar()
         self.port_number = tk.StringVar()
-        self.reader_state = tk.StringVar()  # TODO
+        self.reader_state = tk.StringVar()
 
         super().__init__(master)
         self.pack()
@@ -84,7 +86,7 @@ class Application(tk.Frame):
         self.reader_state_lbl.grid(row=3, column=0, **def_sets)
 
         self.reader_state_cb = ttk.Combobox(self.readers_sets_frame, state=('readonly',),
-                                            values=('Подключен', 'Отключен'), textvariable=self.reader_state)
+                                            values=reader_state_titles, textvariable=self.reader_state)
         self.reader_state_cb.grid(row=3, column=1, **def_sets)
 
         self.delete_reader_btn = ttk.Button(self.readers_sets_frame, text='Удалить ридер', command=self.delete_reader)
@@ -103,7 +105,7 @@ class Application(tk.Frame):
             self.reader_id.set(reader_id)
             self.bus_addr.set(reader['bus_addr'])
             self.port_number.set(reader['port_number'])
-            self.reader_state.set('Подключен' if reader['state'] else 'Отключен')  # TODO
+            self.reader_state.set(reader_state_titles[1] if reader['state'] else reader_state_titles[0])
             self.change_state_btn['text'] = 'Отключить ридер' if reader['state'] else 'Подключить ридер'
         self.readers_list_cb = ttk.Combobox(self.readers_sets_frame, state=('readonly',), textvariable=self.sel_reader)
         self.readers_list_cb.grid(row=4, column=1, **def_sets)
@@ -189,7 +191,7 @@ class Application(tk.Frame):
 
         bus_addr = int(bus_addr)
         port_number = int(port_number)
-        reader_state = True if reader_state == 'Подключен' else False
+        reader_state = True if reader_state == reader_state_titles[1] else False
 
         response = Readers.add_reader(
             data={'reader_id': reader_id, 'bus_addr': bus_addr, 'port_number': port_number, 'state': reader_state}
@@ -222,11 +224,11 @@ class Application(tk.Frame):
 
         bus_addr = int(bus_addr)
         port_number = int(port_number)
-        reader_state = True if reader_state == 'Подключен' else False  # TODO
+        reader_state = True if reader_state == reader_state_titles[1] else False
 
         sel_reader = self.sel_reader.get()
 
-        # TODO не обновлять неизменённые параметры
+        # SIC!: обновляются и неизменённые параметры
         if sel_reader == '' or sel_reader == reader_id:
             response = Readers.update_reader(
                 reader_id=reader_id,
@@ -254,7 +256,7 @@ class Application(tk.Frame):
 
         reader_state = self.reader_state.get()
 
-        reader_state = True if reader_state == 'Подключен' else False  # TODO
+        reader_state = True if reader_state == reader_state_titles[1] else False
 
         new_reader_state = not reader_state
 
